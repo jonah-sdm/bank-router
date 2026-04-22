@@ -136,9 +136,11 @@ export default function RecommendationCard({ rec }) {
       <div className="leg">
         <span className="ccy">{rec.currency_leg}</span>
         <span className="label">currency leg</span>
-        <span style={{ marginLeft: 'auto' }}>
-          <span className={`badge conf-${rec.confidence}`}>{rec.confidence} confidence</span>
-        </span>
+        {rec.manual_review_flag && (
+          <span style={{ marginLeft: 'auto' }}>
+            <span className="badge badge-review">MANUAL REVIEW</span>
+          </span>
+        )}
       </div>
 
       {rec.recommended_bank ? (
@@ -187,14 +189,29 @@ export default function RecommendationCard({ rec }) {
             </div>
           </div>
 
-          {rec.fallback_bank && (
+          {rec.alternatives?.length > 0 && (
             <>
-              <div className="section-label">Fallback Bank</div>
-              <div style={{ fontSize: 13 }}>
-                {rec.fallback_bank.bank_name}
-                {' · '}
-                <span className="mono" style={{ color: 'var(--text-dim)' }}>{rec.fallback_bank.tier}</span>
-              </div>
+              <div className="section-label">Alternative Banks</div>
+              <ul className="alt-list">
+                {rec.alternatives.map(alt => (
+                  <li key={alt.bank_id} className="alt-row">
+                    <div className="alt-left">
+                      <div className="alt-name">{alt.bank_name}</div>
+                      <div className="alt-meta mono">
+                        {alt.tier}
+                        {alt.network && <> · {alt.network}</>}
+                        {alt.pricing_tier && <> · {alt.pricing_tier}</>}
+                      </div>
+                    </div>
+                    <div className="alt-match">
+                      <div className="alt-match-bar">
+                        <div className="alt-match-fill" style={{ width: `${alt.match_pct}%` }} />
+                      </div>
+                      <div className={`alt-match-pct match-${alt.match_pct}`}>{alt.match_pct}%</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </>
           )}
 
@@ -217,11 +234,6 @@ export default function RecommendationCard({ rec }) {
         </div>
       )}
 
-      {rec.manual_review_flag && !isOverride && (
-        <div className="info-banner" style={{ marginTop: 14, marginBottom: 0 }}>
-          Manual review recommended — low confidence or ambiguous routing.
-        </div>
-      )}
     </div>
   );
 }

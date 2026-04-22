@@ -296,16 +296,25 @@ export function selectLPs(profile, bank, network, currency, lps) {
 }
 
 // --------------------------- confidence ---------------------------
+// Simplified: ties between banks are handled by the per-bank Match% shown
+// on alternatives. Confidence is only meaningfully LOW when data is
+// genuinely ambiguous (OTHER vertical, or no eligible banks at all).
 
 function computeConfidence(profile, scored) {
   if (scored.length === 0) return 'LOW';
   if (profile.business_vertical === 'OTHER') return 'LOW';
-  if (scored.length === 1) return 'HIGH';
-  const top = scored[0].score;
-  const second = scored[1].score;
-  if (top - second >= 15) return 'HIGH';
-  if (top - second >= 5)  return 'MEDIUM';
-  return 'LOW';
+  return 'HIGH';
+}
+
+// Bucket a ratio into crude 5-tier match percentages: 0 / 25 / 50 / 75 / 100.
+// 100 means the alternative is essentially tied with the primary recommendation.
+function matchPctFromRatio(ratio) {
+  if (!isFinite(ratio) || ratio <= 0) return 0;
+  if (ratio >= 0.95) return 100;
+  if (ratio >= 0.75) return 75;
+  if (ratio >= 0.50) return 50;
+  if (ratio >= 0.25) return 25;
+  return 0;
 }
 
 // --------------------------- public entry point (PRD §8.4) ---------------------------
@@ -361,12 +370,27 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
     }
     const fxNeeded = Boolean(feedstock && feedstock !== currency);
 
+    // Alternatives: up to 3 other eligible banks, each tagged with a crude
+    // match% (0/25/50/75/100) relative to the primary. 100 = essentially tied.
+    const topScore = top?.score ?? 0;
+    const alternatives = scored.slice(1, 4).map(s => ({
+      bank_id: s.bank.bank_id,
+      bank_name: s.bank.bank_name,
+      tier: s.bank.tier,
+      pricing_tier: s.bank.pricing_tier,
+      settlement_speed: s.bank.settlement_speed,
+      network: s.network,
+      score: s.score,
+      match_pct: matchPctFromRatio(topScore > 0 ? s.score / topScore : 0)
+    }));
+
     return {
       currency_leg: currency,
       recommended_bank: top?.bank ?? null,
       settlement_network: network,
       network_auto_selected: !networkWasRequested,
       fallback_bank: fallback?.bank ?? null,
+      alternatives,
       recommended_lps: lpResult.lps,
       lp_gap_reason: lpResult.reason,
       feedstock_currency: feedstock,
@@ -388,8 +412,7 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
       confidence: computeConfidence(profile, scored),
       manual_review_flag:
         profile.business_vertical === 'OTHER' ||
-        scored.length === 0 ||
-        (scored.length > 1 && (scored[0].score - scored[1].score) < 5)
+        scored.length === 0
     };
   });
 }

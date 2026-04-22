@@ -1242,6 +1242,80 @@ table.data td .row-actions { display: flex; gap: 4px; justify-content: flex-end;
   font-size: 14px;
 }
 
+/* Alternative banks list on the recommendation card */
+.alt-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.alt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.alt-left { min-width: 0; flex: 1; }
+.alt-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.alt-meta {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.alt-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.alt-match-bar {
+  width: 60px;
+  height: 5px;
+  background: var(--bg-elev-3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.alt-match-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.alt-match-pct {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  width: 38px;
+  text-align: right;
+}
+.alt-match-pct.match-100 { color: var(--green); }
+.alt-match-pct.match-75  { color: var(--amber); }
+.alt-match-pct.match-50  { color: var(--yellow); }
+.alt-match-pct.match-25  { color: var(--text-faint); }
+.alt-match-pct.match-0   { color: var(--text-faint); }
+
+.badge.badge-review {
+  background: rgba(245, 214, 35, 0.15);
+  color: var(--yellow);
+  border: 1px solid rgba(245, 214, 35, 0.3);
+}
+
 .affinity-list {
   margin: 8px 0 0;
   padding: 0;
