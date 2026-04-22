@@ -109,7 +109,7 @@ export default function ClientForm({ value, onChange }) {
         <div className="sub-section">Trading & Settlement</div>
 
         <label className="field" style={{ marginBottom: 14 }}>
-          Currencies Traded
+          Currencies Traded · <span style={{ color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>what the client delivers to us</span>
           <div className="checkbox-grid">
             {TRADE_CCYS.map(c => (
               <label key={c} className={v.currencies_traded?.includes(c) ? 'checked' : ''}>
@@ -119,10 +119,14 @@ export default function ClientForm({ value, onChange }) {
               </label>
             ))}
           </div>
+          <div style={{ fontSize: 10.5, color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginTop: 4 }}>
+            What the client deposits / has inventory in. Feeds the LP side of the trade.
+            Include fiat they wire in (USD, EUR, GBP…) and stables they send on-chain (USDT, USDC).
+          </div>
         </label>
 
         <label className="field" style={{ marginBottom: 14 }}>
-          Settlement Currencies (fiat)
+          Settlement Currencies · <span style={{ color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>what the client receives out</span>
           <div className="checkbox-grid">
             {FIAT_CCYS.map(c => (
               <label key={c} className={v.settlement_currencies?.includes(c) ? 'checked' : ''}>
@@ -131,6 +135,10 @@ export default function ClientForm({ value, onChange }) {
                 {c}
               </label>
             ))}
+          </div>
+          <div style={{ fontSize: 10.5, color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginTop: 4 }}>
+            Fiat the client gets paid in. One routing leg is computed per currency here.
+            If a settlement currency isn't in Currencies Traded, the bank will FX for it.
           </div>
         </label>
 
