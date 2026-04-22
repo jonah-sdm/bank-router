@@ -207,30 +207,13 @@ export default function RecommendationCard({ rec }) {
             </>
           )}
 
-          <details className="exclusion-accordion">
-            <summary>Exclusion log ({rec.exclusion_log?.length ?? 0})</summary>
-            <ul className="exclusion-list">
-              {rec.exclusion_log.map((x, i) => (
-                <li key={i}>
-                  <span className="xbank">{x.bank_name}</span>
-                  {' — '}
-                  <span className="xreason">{x.reason}</span>
-                </li>
-              ))}
-              {rec.exclusion_log.length === 0 && <li style={{ color: 'var(--text-faint)' }}>No exclusions — all banks eligible.</li>}
-            </ul>
-          </details>
         </>
       ) : (
         <div style={{ padding: '24px 0', color: 'var(--red)' }}>
-          No eligible bank found for {rec.currency_leg}. Review exclusion log:
-          <ul className="exclusion-list" style={{ marginTop: 10 }}>
-            {rec.exclusion_log.map((x, i) => (
-              <li key={i}>
-                <span className="xbank">{x.bank_name}</span> — <span className="xreason">{x.reason}</span>
-              </li>
-            ))}
-          </ul>
+          No eligible bank found for {rec.currency_leg}.
+          <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-dim)' }}>
+            Try adjusting risk rating, business vertical, or settlement method on the profile.
+          </div>
         </div>
       )}
 
