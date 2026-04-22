@@ -338,14 +338,15 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
     const networkWasRequested = arr(profile.settlement_methods).includes(network);
 
     // Feedstock = what the bank will receive from the LP. Priority:
-    //   1. If payout currency is itself accepted → passthrough, no FX
-    //   2. If client's "currencies_traded" list includes any currency the bank
-    //      accepts AND an LP supplies it → use that (respects client's
-    //      declared inventory / trading preferences)
-    //   3. Prefer USD (most liquid)
-    //   4. Prefer USDC / USDT (stables, for crypto-native flows)
-    //   5. Pick any accepted currency an eligible LP supplies
-    //   6. Fall back to the bank's first declared accepted currency
+    //   1. PASSTHROUGH — only if (a) the bank accepts the payout currency AND
+    //      (b) the client actually trades it (or hasn't declared any trades,
+    //      in which case we trust the settlement currency).
+    //      We MUST NOT pick passthrough when the client trades only USD but
+    //      wants to be paid in EUR — they can't deliver EUR to us, so the
+    //      bank has to FX USD → EUR.
+    //   2. Use a currency the client trades that the bank accepts + an LP
+    //      supplies (honors declared inventory).
+    //   3. Fallbacks: USD → USDC → USDT → any accepted + LP match.
     const accepted = arr(top?.bank?.accepts_lp_currencies).length
       ? top.bank.accepts_lp_currencies
       : arr(top?.bank?.supported_currencies);
@@ -353,11 +354,14 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
     let feedstock = null;
     if (top && accepted.length) {
       const lpProvided = new Set((lpResult.lps || []).flatMap(lp => arr(lp.supported_currencies)));
+      const canPassthrough = accepted.includes(currency) &&
+        (clientTraded.length === 0 || clientTraded.includes(currency));
 
-      if (accepted.includes(currency)) {
+      if (canPassthrough) {
         feedstock = currency;
       } else {
-        // Respect client's traded currencies first
+        // Client doesn't trade the payout currency — bank must FX from
+        // something the client actually trades.
         const clientMatch = clientTraded.find(c => accepted.includes(c) && lpProvided.has(c));
         if (clientMatch) {
           feedstock = clientMatch;
