@@ -1632,32 +1632,45 @@ table.data td .row-actions { display: flex; gap: 4px; justify-content: flex-end;
   line-height: 1.55;
 }
 
-.routing-overview-stat-inline {
+/* 4 colored stat cards inside the portfolio view */
+.routing-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+@media (max-width: 900px) { .routing-overview-stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* Inline metric strip under the 4 cards */
+.routing-overview-metrics {
   display: flex;
-  gap: 28px;
+  gap: 32px;
   flex-wrap: wrap;
-  padding: 6px 0;
+  padding: 14px 20px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 18px;
 }
-.roi-stat {
+.roi-metric {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: baseline;
+  gap: 8px;
 }
-.roi-stat-v {
-  font-size: 28px;
+.roi-metric-v {
+  font-size: 20px;
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--text);
-  line-height: 1;
   letter-spacing: -0.5px;
+  line-height: 1;
 }
-.roi-stat.amber .roi-stat-v { color: var(--amber); }
-.roi-stat-k {
-  font-size: 10px;
+.roi-metric.amber .roi-metric-v { color: var(--amber); }
+.roi-metric-k {
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--text-faint);
-  margin-top: 4px;
   font-weight: 600;
 }
 

@@ -1,10 +1,14 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { computeRouting } from '../engine/routing.js';
 import { countryName } from '../lib/countries.js';
 
-// Aggregate routing dashboard — runs the engine across every client in the
-// registry and shows where the portfolio is placed today.
+// Unified portfolio view — 4 colored stat cards + aggregate routing stats +
+// 3 bar panels. Runs the engine across every client to show where the
+// portfolio is placed right now.
 export default function RoutingOverview({ clients, banks, lps, affinity, weights }) {
+  const navigate = useNavigate();
+
   // ---- compute routings for every client ----
   const allRoutings = useMemo(() => {
     if (!weights || banks.length === 0) return [];
@@ -19,10 +23,10 @@ export default function RoutingOverview({ clients, banks, lps, affinity, weights
 
   // ---- aggregations ----
   const stats = useMemo(() => {
-    const bankClients = {};              // bank_name → Set<client_id>
-    const bankJurisdictions = {};        // bank_name → Set<country>
-    const jurisdictionCount = {};        // country → clients count
-    const currencyLegCount = {};         // ccy → leg count
+    const bankClients = {};
+    const bankJurisdictions = {};
+    const jurisdictionCount = {};
+    const currencyLegCount = {};
     let totalLegs = 0;
     let highConfLegs = 0;
     let instantLegs = 0;
@@ -75,6 +79,13 @@ export default function RoutingOverview({ clients, banks, lps, affinity, weights
       .map(([ccy, count]) => ({ label: ccy, value: count }))
       .sort((a, b) => b.value - a.value);
 
+    const clientsByEntity = tally(clients, c => c.sdm_entity, ['SDM_INC', 'SDM_USA']);
+    const activeBanks = banks.filter(b => b.is_active !== false).length;
+    const activeLps = lps.filter(l => l.is_active !== false).length;
+    const activeRules = affinity.filter(r => r.is_active !== false).length;
+    const currenciesCovered = uniqueFlat(banks, b => b.supported_currencies);
+    const networksCovered = uniqueFlat(lps, l => l.settlement_networks);
+
     return {
       totalClients: clients.length,
       totalLegs,
@@ -84,9 +95,21 @@ export default function RoutingOverview({ clients, banks, lps, affinity, weights
       instantPct: totalLegs > 0 ? Math.round((instantLegs / totalLegs) * 100) : 0,
       byBank,
       byJurisdiction,
-      byCurrency
+      byCurrency,
+      registry: {
+        clients: clients.length,
+        banks: banks.length,
+        lps: lps.length,
+        rules: affinity.length,
+        activeBanks, activeLps, activeRules,
+        clientsINC: clientsByEntity.SDM_INC || 0,
+        clientsUSA: clientsByEntity.SDM_USA || 0,
+        currenciesCovered: currenciesCovered.length,
+        networksCovered: networksCovered.length,
+        ruleCurrencies: [...new Set(affinity.map(r => r.currency))].length
+      }
     };
-  }, [allRoutings, clients]);
+  }, [allRoutings, clients, banks, lps, affinity]);
 
   const hasData = clients.length > 0 && banks.length > 0;
 
@@ -95,39 +118,63 @@ export default function RoutingOverview({ clients, banks, lps, affinity, weights
       <div className="routing-overview-header">
         <div>
           <div className="routing-overview-kicker">Portfolio View</div>
-          <h2 className="routing-overview-title">
-            Where Your Clients Are Routed
-          </h2>
+          <h2 className="routing-overview-title">Where Your Clients Are Routed</h2>
           <p className="routing-overview-sub">
             Live aggregate of the engine's recommendation for every client in the registry.
             {' '}Re-computes instantly when banks, LPs, or affinity rules change.
           </p>
         </div>
-        <div className="routing-overview-stat-inline">
-          <div className="roi-stat">
-            <div className="roi-stat-v">{stats.totalClients}</div>
-            <div className="roi-stat-k">clients</div>
-          </div>
-          <div className="roi-stat">
-            <div className="roi-stat-v">{stats.banksActive}</div>
-            <div className="roi-stat-k">banks in use</div>
-          </div>
-          <div className="roi-stat">
-            <div className="roi-stat-v">{stats.jurisdictionsCount}</div>
-            <div className="roi-stat-k">jurisdictions</div>
-          </div>
-          <div className="roi-stat">
-            <div className="roi-stat-v">{stats.totalLegs}</div>
-            <div className="roi-stat-k">currency legs</div>
-          </div>
-          <div className="roi-stat amber">
-            <div className="roi-stat-v">{stats.highConfPct}%</div>
-            <div className="roi-stat-k">high confidence</div>
-          </div>
-          <div className="roi-stat amber">
-            <div className="roi-stat-v">{stats.instantPct}%</div>
-            <div className="roi-stat-k">instant settlement</div>
-          </div>
+      </div>
+
+      {/* Registry + portfolio metrics — colored stat cards */}
+      <div className="routing-overview-stats">
+        <StatCard
+          label="Clients"
+          value={stats.registry.clients}
+          sub={`${stats.registry.clientsINC} INC · ${stats.registry.clientsUSA} USA`}
+          accent="amber"
+          onClick={() => navigate('/registry/clients')}
+        />
+        <StatCard
+          label="Banks"
+          value={stats.registry.banks}
+          sub={`${stats.registry.activeBanks} active · ${stats.banksActive} in use today`}
+          accent="green"
+          onClick={() => navigate('/registry/banks')}
+        />
+        <StatCard
+          label="Liquidity Providers"
+          value={stats.registry.lps}
+          sub={`${stats.registry.activeLps} active · on ${stats.registry.networksCovered} networks`}
+          accent="blue"
+          onClick={() => navigate('/registry/lps')}
+        />
+        <StatCard
+          label="Affinity Rules"
+          value={stats.registry.rules}
+          sub={`${stats.registry.activeRules} active · across ${stats.registry.ruleCurrencies} currencies`}
+          accent="purple"
+          onClick={() => navigate('/rules/affinity')}
+        />
+      </div>
+
+      {/* Aggregate portfolio stats bar */}
+      <div className="routing-overview-metrics">
+        <div className="roi-metric">
+          <span className="roi-metric-v">{stats.jurisdictionsCount}</span>
+          <span className="roi-metric-k">jurisdictions</span>
+        </div>
+        <div className="roi-metric">
+          <span className="roi-metric-v">{stats.totalLegs}</span>
+          <span className="roi-metric-k">currency legs</span>
+        </div>
+        <div className="roi-metric amber">
+          <span className="roi-metric-v">{stats.highConfPct}%</span>
+          <span className="roi-metric-k">high confidence</span>
+        </div>
+        <div className="roi-metric amber">
+          <span className="roi-metric-v">{stats.instantPct}%</span>
+          <span className="roi-metric-k">instant settlement</span>
         </div>
       </div>
 
@@ -222,5 +269,31 @@ export default function RoutingOverview({ clients, banks, lps, affinity, weights
         </div>
       )}
     </div>
+  );
+}
+
+// --------- local helpers ---------
+function tally(items, keyFn, preset) {
+  const out = preset ? Object.fromEntries(preset.map(k => [k, 0])) : {};
+  for (const x of items) {
+    const k = keyFn(x);
+    if (k == null) continue;
+    out[k] = (out[k] || 0) + 1;
+  }
+  return out;
+}
+function uniqueFlat(items, keyFn) {
+  const s = new Set();
+  for (const x of items) for (const v of (keyFn(x) || [])) s.add(v);
+  return [...s];
+}
+
+function StatCard({ label, value, sub, accent, onClick }) {
+  return (
+    <button className={`stat-card stat-${accent}`} onClick={onClick}>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value">{value}</div>
+      <div className="stat-sub">{sub}</div>
+    </button>
   );
 }

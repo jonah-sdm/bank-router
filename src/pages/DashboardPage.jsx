@@ -101,39 +101,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Primary KPI row */}
-      <div className="dash-stats">
-        <StatCard
-          label="Clients"
-          value={stats.clients.total}
-          sub={`${stats.clients.active} active · ${stats.clients.byEntity.SDM_INC || 0} INC · ${stats.clients.byEntity.SDM_USA || 0} USA`}
-          accent="amber"
-          onClick={() => navigate('/registry/clients')}
-        />
-        <StatCard
-          label="Banks"
-          value={stats.banks.total}
-          sub={`${stats.banks.active} active · covering ${stats.banks.currenciesCovered.length} currencies`}
-          accent="green"
-          onClick={() => navigate('/registry/banks')}
-        />
-        <StatCard
-          label="Liquidity Providers"
-          value={stats.lps.total}
-          sub={`${stats.lps.active} active · on ${stats.lps.networksCovered.length} networks`}
-          accent="blue"
-          onClick={() => navigate('/registry/lps')}
-        />
-        <StatCard
-          label="Affinity Rules"
-          value={stats.rules.total}
-          sub={`${stats.rules.active} active · across ${Object.keys(stats.rules.byCurrency).length} currencies`}
-          accent="purple"
-          onClick={() => navigate('/rules/affinity')}
-        />
-      </div>
-
-      {/* Portfolio view — where each client is currently routed */}
+      {/* Portfolio view — unified registry + routing aggregate */}
       <RoutingOverview
         clients={clients}
         banks={banks}
