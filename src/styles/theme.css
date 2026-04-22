@@ -1371,52 +1371,145 @@ table.data td .row-actions { display: flex; gap: 4px; justify-content: flex-end;
 /* ====================== Dashboard ====================== */
 
 .dash-hero {
+  position: relative;
+  overflow: hidden;
+  margin: -28px -32px 28px;     /* bleed to page edges */
+  padding: 56px 44px 52px;
+  background:
+    radial-gradient(ellipse 600px 300px at 85% 40%, rgba(245, 166, 35, 0.14), transparent 70%),
+    radial-gradient(ellipse 400px 200px at 20% 80%, rgba(245, 166, 35, 0.06), transparent 70%),
+    linear-gradient(180deg, var(--bg-elev-1) 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.dash-hero::after {
+  /* amber gradient line at bottom — echoes the stat-card accent */
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--amber) 30%,
+    var(--amber) 70%,
+    transparent 100%);
+  opacity: 0.4;
+}
+.dash-hero-shield-bg {
+  position: absolute;
+  top: 50%;
+  right: -80px;
+  transform: translateY(-50%);
+  width: 400px;
+  height: auto;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+  filter: drop-shadow(0 0 40px rgba(245, 166, 35, 0.25));
+}
+.dash-hero-inner {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
-  padding: 28px 0 32px;
-  border-bottom: 1px solid var(--border-soft);
-  margin-bottom: 28px;
+  gap: 32px;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.dash-hero-text {
+  flex: 1;
+  min-width: 340px;
 }
 .dash-hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
-  letter-spacing: 2px;
+  letter-spacing: 2.4px;
   text-transform: uppercase;
   color: var(--amber);
   font-family: var(--font-mono);
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
+  padding: 5px 12px 5px 8px;
+  background: var(--amber-glow);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  border-radius: 999px;
+}
+.dash-hero-kicker-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(245, 166, 35, 0.8);
+  animation: pulse-dot-soft 2.4s ease-in-out infinite;
+}
+@keyframes pulse-dot-soft {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
 }
 .dash-hero-title {
-  font-size: 42px;
+  font-size: 56px;
   font-weight: 700;
-  margin: 0 0 10px;
-  letter-spacing: -0.5px;
-  line-height: 1.1;
+  margin: 0 0 16px;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.dash-hero-title .dash-hero-shield-mark {
+  height: 60px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 0 20px rgba(245, 166, 35, 0.4));
 }
 .dash-hero-title-accent {
   color: var(--amber);
   font-weight: 300;
+  font-style: italic;
+  letter-spacing: -1px;
 }
 .dash-hero-sub {
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: 15px;
   margin: 0;
-  max-width: 640px;
-  line-height: 1.55;
+  max-width: 720px;
+  line-height: 1.6;
+}
+.dash-hero-stat {
+  color: var(--text);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  white-space: nowrap;
 }
 .dash-hero-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
 }
 .btn.large {
-  padding: 12px 22px;
+  padding: 13px 24px;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.3px;
+  border-radius: var(--radius-md);
+}
+.btn.primary.large {
+  box-shadow: 0 6px 20px rgba(245, 166, 35, 0.25);
+}
+.btn.primary.large:hover {
+  box-shadow: 0 8px 28px rgba(245, 166, 35, 0.35);
+}
+
+@media (max-width: 760px) {
+  .dash-hero { padding: 36px 24px; margin: -28px -20px 20px; }
+  .dash-hero-title { font-size: 38px; gap: 12px; }
+  .dash-hero-title .dash-hero-shield-mark { height: 42px; }
+  .dash-hero-shield-bg { display: none; }
 }
 
 .dash-stats {

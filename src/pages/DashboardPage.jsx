@@ -5,6 +5,7 @@ import {
 } from '../lib/dataStore.js';
 import { useDataChange } from '../lib/dataEvents.js';
 import { useQuickAdd } from '../lib/quickAddContext.jsx';
+import sdmShield from '../assets/sdm-shield.svg';
 
 export default function DashboardPage() {
   const [banks, setBanks] = useState([]);
@@ -64,26 +65,37 @@ export default function DashboardPage() {
     <>
       {err && <div className="error-banner">{err}</div>}
 
-      {/* Hero */}
+      {/* Hero — shield mark + ticker + title + actions */}
       <div className="dash-hero">
-        <div>
-          <div className="dash-hero-kicker">Dashboard</div>
-          <h1 className="dash-hero-title">
-            Atlas <span className="dash-hero-title-accent">Routing Engine</span>
-          </h1>
-          <p className="dash-hero-sub">
-            Real-time view of SDM's banking and liquidity registry.
-            {' '}
-            {stats.clients.total} clients routed across {stats.banks.active} banks and {stats.lps.active} liquidity providers.
-          </p>
-        </div>
-        <div className="dash-hero-actions">
-          <button className="btn primary large" onClick={() => navigate('/routing')}>
-            Start Routing →
-          </button>
-          <button className="btn ghost large" onClick={() => openQuickAdd({ kind: 'client' })}>
-            + Add Client
-          </button>
+        <img src={sdmShield} alt="" className="dash-hero-shield-bg" aria-hidden="true" />
+        <div className="dash-hero-inner">
+          <div className="dash-hero-text">
+            <div className="dash-hero-kicker">
+              <span className="dash-hero-kicker-dot" />
+              SDM Atlas · Dashboard
+            </div>
+            <h1 className="dash-hero-title">
+              <img src={sdmShield} alt="" className="dash-hero-shield-mark" />
+              <span>Atlas</span>
+              <span className="dash-hero-title-accent">Routing Engine</span>
+            </h1>
+            <p className="dash-hero-sub">
+              Real-time view of SDM's banking and liquidity registry.
+              {' '}
+              <strong className="dash-hero-stat">{stats.clients.total} clients</strong> routed across
+              {' '}<strong className="dash-hero-stat">{stats.banks.active} banks</strong> and
+              {' '}<strong className="dash-hero-stat">{stats.lps.active} liquidity providers</strong>
+              {' '}across <strong className="dash-hero-stat">{stats.banks.currenciesCovered.length} currencies</strong>.
+            </p>
+          </div>
+          <div className="dash-hero-actions">
+            <button className="btn primary large" onClick={() => navigate('/routing')}>
+              Start Routing →
+            </button>
+            <button className="btn ghost large" onClick={() => openQuickAdd({ kind: 'client' })}>
+              + Add Client
+            </button>
+          </div>
         </div>
       </div>
 
