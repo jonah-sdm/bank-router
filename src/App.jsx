@@ -11,13 +11,16 @@ export default function App() {
     <QuickAddProvider>
       <div className="app-shell">
         <header className="topbar">
-          <NavLink to="/routing" className="brand">
+          <NavLink to="/" className="brand">
             <img src={sdmLogo} alt="SDM" className="brand-logo" />
             <span className="brand-divider" />
             <span className="kicker">Routing Engine</span>
           </NavLink>
 
           <nav className="topnav">
+            <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
+              Dashboard
+            </NavLink>
             <NavLink to="/routing" className={({ isActive }) => isActive ? 'active' : ''}>
               Routing
             </NavLink>
