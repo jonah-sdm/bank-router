@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  listBanks, listLPs, listClients, listAffinity, listAudit
+  listBanks, listLPs, listClients, listAffinity, listAudit, getWeights
 } from '../lib/dataStore.js';
 import { useDataChange } from '../lib/dataEvents.js';
 import { useQuickAdd } from '../lib/quickAddContext.jsx';
 import sdmShield from '../assets/sdm-shield.svg';
+import RoutingOverview from '../components/RoutingOverview.jsx';
 
 export default function DashboardPage() {
   const [banks, setBanks] = useState([]);
@@ -13,6 +14,7 @@ export default function DashboardPage() {
   const [clients, setClients] = useState([]);
   const [rules, setRules] = useState([]);
   const [audit, setAudit] = useState([]);
+  const [weights, setWeights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const navigate = useNavigate();
@@ -21,10 +23,10 @@ export default function DashboardPage() {
   async function load() {
     try {
       setLoading(true);
-      const [b, l, c, r, a] = await Promise.all([
-        listBanks(), listLPs(), listClients(), listAffinity(), listAudit(12)
+      const [b, l, c, r, a, w] = await Promise.all([
+        listBanks(), listLPs(), listClients(), listAffinity(), listAudit(12), getWeights()
       ]);
-      setBanks(b); setLps(l); setClients(c); setRules(r); setAudit(a);
+      setBanks(b); setLps(l); setClients(c); setRules(r); setAudit(a); setWeights(w);
       setErr(null);
     } catch (e) { setErr(e.message ?? String(e)); }
     finally { setLoading(false); }
@@ -131,56 +133,14 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Composition row */}
-      <div className="dash-row">
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Clients by Risk</h3>
-            <span className="dash-panel-meta">{stats.clients.total} total</span>
-          </div>
-          <BarList
-            items={[
-              { label: 'LOW',    value: stats.clients.byRisk.LOW    || 0, className: 'cp-risk-LOW' },
-              { label: 'MEDIUM', value: stats.clients.byRisk.MEDIUM || 0, className: 'cp-risk-MEDIUM' },
-              { label: 'HIGH',   value: stats.clients.byRisk.HIGH   || 0, className: 'cp-risk-HIGH' }
-            ]}
-            emptyText="No clients yet."
-          />
-        </div>
-
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Banks by Tier</h3>
-            <span className="dash-panel-meta">{stats.banks.total} total</span>
-          </div>
-          <BarList
-            items={[
-              { label: 'T1',             value: stats.banks.byTier.T1             || 0 },
-              { label: 'T1 CAD',         value: stats.banks.byTier.T1_CAD         || 0 },
-              { label: 'T2',             value: stats.banks.byTier.T2             || 0 },
-              { label: 'T2 Specialist',  value: stats.banks.byTier.T2_SPECIALIST  || 0 },
-              { label: 'T3',             value: stats.banks.byTier.T3             || 0 },
-              { label: 'T3 Dedicated',   value: stats.banks.byTier.T3_DEDICATED   || 0 }
-            ].filter(x => x.value > 0)}
-            emptyText="No banks yet."
-          />
-        </div>
-
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Clients by Priority</h3>
-            <span className="dash-panel-meta">{stats.clients.total} total</span>
-          </div>
-          <BarList
-            items={[
-              { label: 'P1 (Critical)', value: stats.clients.byPriority.P1 || 0 },
-              { label: 'P2 (Standard)', value: stats.clients.byPriority.P2 || 0 },
-              { label: 'P3 (Low)',      value: stats.clients.byPriority.P3 || 0 }
-            ]}
-            emptyText="No clients yet."
-          />
-        </div>
-      </div>
+      {/* Portfolio view — where each client is currently routed */}
+      <RoutingOverview
+        clients={clients}
+        banks={banks}
+        lps={lps}
+        affinity={rules}
+        weights={weights}
+      />
 
       {/* Coverage row */}
       <div className="dash-coverage">

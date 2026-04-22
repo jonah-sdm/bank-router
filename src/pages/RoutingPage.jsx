@@ -5,7 +5,6 @@ import RecommendationCard from '../components/RecommendationCard.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import ClientListSidebar from '../components/ClientListSidebar.jsx';
-import RoutingOverview from '../components/RoutingOverview.jsx';
 import ClientProfileCard from '../components/ClientProfileCard.jsx';
 import { computeRouting } from '../engine/routing.js';
 import {
@@ -235,14 +234,6 @@ export default function RoutingPage() {
       </div>
 
       {error && <div className="error-banner">{error}</div>}
-
-      <RoutingOverview
-        clients={clients}
-        banks={banks}
-        lps={lps}
-        affinity={affinity}
-        weights={weights}
-      />
 
       <div className="routing-split">
         <ClientListSidebar
