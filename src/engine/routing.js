@@ -328,25 +328,35 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
     // Whether the user asked for this network, or engine picked it for them
     const networkWasRequested = arr(profile.settlement_methods).includes(network);
 
-    // Feedstock = what the bank will receive from the LP. If the payout
-    // currency itself is acceptable to the bank, use that (no FX). Else prefer
-    // USD (most liquid), else pick the first accepted LP currency an eligible
-    // LP can actually supply, else the bank's first accepted feedstock.
+    // Feedstock = what the bank will receive from the LP. Priority:
+    //   1. If payout currency is itself accepted → passthrough, no FX
+    //   2. If client's "currencies_traded" list includes any currency the bank
+    //      accepts AND an LP supplies it → use that (respects client's
+    //      declared inventory / trading preferences)
+    //   3. Prefer USD (most liquid)
+    //   4. Prefer USDC / USDT (stables, for crypto-native flows)
+    //   5. Pick any accepted currency an eligible LP supplies
+    //   6. Fall back to the bank's first declared accepted currency
     const accepted = arr(top?.bank?.accepts_lp_currencies).length
       ? top.bank.accepts_lp_currencies
       : arr(top?.bank?.supported_currencies);
+    const clientTraded = arr(profile.currencies_traded);
     let feedstock = null;
     if (top && accepted.length) {
+      const lpProvided = new Set((lpResult.lps || []).flatMap(lp => arr(lp.supported_currencies)));
+
       if (accepted.includes(currency)) {
         feedstock = currency;
-      } else if (lpResult.lps?.length) {
-        const lpProvided = new Set(lpResult.lps.flatMap(lp => arr(lp.supported_currencies)));
-        if (lpProvided.has('USD') && accepted.includes('USD'))      feedstock = 'USD';
+      } else {
+        // Respect client's traded currencies first
+        const clientMatch = clientTraded.find(c => accepted.includes(c) && lpProvided.has(c));
+        if (clientMatch) {
+          feedstock = clientMatch;
+        } else if (lpProvided.has('USD') && accepted.includes('USD'))      feedstock = 'USD';
         else if (lpProvided.has('USDC') && accepted.includes('USDC')) feedstock = 'USDC';
         else if (lpProvided.has('USDT') && accepted.includes('USDT')) feedstock = 'USDT';
-        else feedstock = accepted.find(c => lpProvided.has(c)) ?? accepted[0];
-      } else {
-        feedstock = accepted.includes('USD') ? 'USD' : accepted[0];
+        else feedstock = accepted.find(c => lpProvided.has(c))
+          ?? (accepted.includes('USD') ? 'USD' : accepted[0]);
       }
     }
     const fxNeeded = Boolean(feedstock && feedstock !== currency);
