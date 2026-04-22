@@ -20,7 +20,7 @@ export default function App() {
 
           <nav className="topnav">
             <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
-              Dashboard
+              Home
             </NavLink>
             <NavLink to="/routing" className={({ isActive }) => isActive ? 'active' : ''}>
               Routing

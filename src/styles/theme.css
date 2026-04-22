@@ -54,6 +54,121 @@ button { font-family: inherit; cursor: pointer; }
 
 code, .mono { font-family: var(--font-mono); }
 
+/* ------------ Password Gate ------------ */
+.gate-shell {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse 600px 400px at 50% 30%, rgba(238, 193, 63, 0.1), transparent 70%),
+    radial-gradient(ellipse 500px 400px at 50% 80%, rgba(238, 193, 63, 0.05), transparent 70%),
+    var(--bg);
+  z-index: 9999;
+  padding: 24px;
+}
+.gate-card {
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(160deg, var(--bg-elev-1), var(--bg-elev-2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px 32px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+}
+.gate-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+  opacity: 0.8;
+}
+.gate-card.shake { animation: gate-shake 0.35s ease; }
+@keyframes gate-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.gate-shield {
+  width: 64px;
+  height: auto;
+  display: block;
+  margin: 0 auto 20px;
+  filter: drop-shadow(0 0 16px rgba(238, 193, 63, 0.35));
+}
+.gate-kicker {
+  font-size: 10.5px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--amber);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.gate-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0 0 10px;
+}
+.gate-sub {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 0 0 28px;
+  line-height: 1.55;
+}
+.gate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gate-input {
+  background: var(--bg-elev-3);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 13px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  text-align: center;
+  letter-spacing: 1px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.gate-input:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-glow);
+}
+.gate-input.error {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(255, 90, 122, 0.15);
+}
+.gate-submit {
+  width: 100%;
+  justify-content: center;
+}
+.gate-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.gate-err {
+  color: var(--red);
+  font-size: 12px;
+  margin-top: 12px;
+  font-weight: 500;
+}
+.gate-foot {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
 /* ------------ Layout ------------ */
 .app-shell {
   display: grid;

@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import App from './App.jsx'
+import PasswordGate from './components/PasswordGate.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import RoutingPage from './pages/RoutingPage.jsx'
 import BanksPage from './pages/registry/BanksPage.jsx'
@@ -14,6 +15,7 @@ import './styles/theme.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    <PasswordGate>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />}>
@@ -43,5 +45,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </Route>
       </Routes>
     </BrowserRouter>
+    </PasswordGate>
   </React.StrictMode>
 )

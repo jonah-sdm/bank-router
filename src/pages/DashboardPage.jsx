@@ -74,7 +74,7 @@ export default function DashboardPage() {
           <div className="dash-hero-text">
             <div className="dash-hero-kicker">
               <span className="dash-hero-kicker-dot" />
-              SDM Atlas · Dashboard
+              SDM Atlas · Home
             </div>
             <h1 className="dash-hero-title">
               <img src={sdmShield} alt="" className="dash-hero-shield-mark" />

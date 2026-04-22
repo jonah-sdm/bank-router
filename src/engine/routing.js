@@ -317,6 +317,55 @@ function matchPctFromRatio(ratio) {
   return 0;
 }
 
+// Build the full flow details (feedstock, FX, recommended LPs, network) for a
+// specific scored bank on a currency leg. Used for both the primary
+// recommendation and the alternatives so swapping between them produces
+// a fully-realized flow display.
+function buildBankFlow(profile, scoredBank, currency, lps) {
+  const bank = scoredBank.bank;
+  const network = scoredBank.network;
+  const lpResult = selectLPs(profile, bank, network, currency, lps);
+
+  const accepted = arr(bank?.accepts_lp_currencies).length
+    ? bank.accepts_lp_currencies
+    : arr(bank?.supported_currencies);
+  const clientTraded = arr(profile.currencies_traded);
+
+  let feedstock = null;
+  if (accepted.length) {
+    const lpProvided = new Set((lpResult.lps || []).flatMap(lp => arr(lp.supported_currencies)));
+    const canPassthrough = accepted.includes(currency) &&
+      (clientTraded.length === 0 || clientTraded.includes(currency));
+
+    if (canPassthrough) {
+      feedstock = currency;
+    } else {
+      const onlyStables = accepted.every(c => c === 'USDT' || c === 'USDC');
+      if (onlyStables) {
+        if (lpProvided.has('USDC') && accepted.includes('USDC'))      feedstock = 'USDC';
+        else if (lpProvided.has('USDT') && accepted.includes('USDT')) feedstock = 'USDT';
+        else feedstock = accepted[0];
+      } else if (accepted.includes('USD')) {
+        feedstock = 'USD';
+      } else {
+        const clientMatch = clientTraded.find(c => accepted.includes(c) && lpProvided.has(c));
+        feedstock = clientMatch
+          ?? accepted.find(c => lpProvided.has(c))
+          ?? accepted[0];
+      }
+    }
+  }
+
+  return {
+    bank,
+    network,
+    feedstock_currency: feedstock,
+    fx_needed: Boolean(feedstock && feedstock !== currency),
+    recommended_lps: lpResult.lps,
+    lp_gap_reason: lpResult.reason
+  };
+}
+
 // --------------------------- public entry point (PRD §8.4) ---------------------------
 
 export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, affinityRules = []) {
