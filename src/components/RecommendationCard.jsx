@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 // Human-readable explanation of why an LP set is empty.
 // Differentiates registry gaps ("no LP supports CNY") from routing quirks
 // ("the engine auto-picked SWIFT and no LP does SWIFT-to-Equals").
@@ -24,7 +26,6 @@ function renderLPGap(rec) {
         </>
       );
     case 'NO_LP_FOR_CURRENCY':
-      // Retained for back-compat; current engine emits NO_LP_FOR_BANK_FEEDSTOCK.
       return (
         <>
           <strong style={{ color: 'var(--yellow)' }}>LP registry gap:</strong>{' '}
@@ -64,8 +65,72 @@ function renderLPGap(rec) {
   }
 }
 
+// Inline LP picker used inside the Settlement Flow. Clickable box that opens a
+// popover listing all recommended LPs for this leg. Lets ops choose which LP
+// to actually use — default is the first (engine-picked) LP.
+function LPFlowPicker({ lps, selected, onSelect, feedstock }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const multi = lps.length > 1;
+
+  return (
+    <div
+      ref={ref}
+      className={`flow-step flow-lp ${multi ? 'has-dropdown' : ''} ${open ? 'open' : ''}`}
+      onClick={() => multi && setOpen(v => !v)}
+      role={multi ? 'button' : undefined}
+      tabIndex={multi ? 0 : undefined}
+      onKeyDown={(e) => { if (multi && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(v => !v); } }}
+    >
+      <div className="flow-step-label">
+        {selected?.lp_name || 'LP'}
+        {multi && <span className="flow-step-chev">{open ? '▴' : '▾'}</span>}
+      </div>
+      <div className="flow-step-value mono">{feedstock || '—'}</div>
+
+      {open && (
+        <div className="flow-lp-menu" onClick={e => e.stopPropagation()} role="listbox">
+          <div className="flow-lp-menu-label">Choose liquidity provider</div>
+          {lps.map(lp => (
+            <div
+              key={lp.lp_id}
+              role="option"
+              aria-selected={lp.lp_id === selected?.lp_id}
+              className={`flow-lp-menu-item ${lp.lp_id === selected?.lp_id ? 'selected' : ''}`}
+              onClick={() => { onSelect(lp); setOpen(false); }}
+            >
+              <span className="flow-lp-menu-name">{lp.lp_name}</span>
+              <span className="flow-lp-menu-meta mono">
+                {(lp.supported_currencies || []).slice(0, 4).join(', ')}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RecommendationCard({ rec }) {
   const isOverride = rec.is_manual_override;
+  const lps = rec.recommended_lps || [];
+
+  // Local state: which LP is the "active" pick. Defaults to the engine's
+  // first recommendation and resets whenever the LP list changes.
+  const [selectedLp, setSelectedLp] = useState(lps[0] || null);
+  useEffect(() => {
+    setSelectedLp(lps[0] || null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rec.currency_leg, lps.map(l => l.lp_id).join(',')]);
+
   return (
     <div className={`rec-card ${isOverride ? 'override' : ''}`}>
       <div className="leg">
@@ -88,20 +153,24 @@ export default function RecommendationCard({ rec }) {
             <span className="badge">{rec.recommended_bank.settlement_speed}</span>
           </div>
 
-
-
           {/* Settlement flow — shows the bank acting as pass-through vs. doing FX */}
           <div className="section-label">Settlement Flow</div>
           <div className="flow-chain">
-            <div className="flow-step flow-lp">
-              <div className="flow-step-label">
-                {rec.recommended_lps?.[0]?.lp_name || 'LP'}
-                {rec.recommended_lps?.length > 1 && (
-                  <span className="flow-step-extra"> +{rec.recommended_lps.length - 1}</span>
-                )}
+            {lps.length > 0 ? (
+              <LPFlowPicker
+                lps={lps}
+                selected={selectedLp}
+                onSelect={setSelectedLp}
+                feedstock={rec.feedstock_currency}
+              />
+            ) : (
+              <div className="flow-step flow-lp flow-lp-empty">
+                <div className="flow-step-label">LP</div>
+                <div className="flow-step-value mono" style={{ color: 'var(--text-faint)' }}>
+                  none available
+                </div>
               </div>
-              <div className="flow-step-value mono">{rec.feedstock_currency || '—'}</div>
-            </div>
+            )}
             <div className="flow-arrow">→</div>
             <div className={`flow-step flow-bank ${rec.fx_needed ? 'fx' : ''}`}>
               <div className="flow-step-label">{rec.recommended_bank?.bank_name}</div>
@@ -120,7 +189,7 @@ export default function RecommendationCard({ rec }) {
 
           {rec.fallback_bank && (
             <>
-              <div className="section-label">Fallback</div>
+              <div className="section-label">Fallback Bank</div>
               <div style={{ fontSize: 13 }}>
                 {rec.fallback_bank.bank_name}
                 {' · '}
@@ -129,20 +198,9 @@ export default function RecommendationCard({ rec }) {
             </>
           )}
 
-          {rec.recommended_lps?.length > 0 && (
+          {lps.length === 0 && (
             <>
-              <div className="section-label">Recommended LPs</div>
-              <div>
-                {rec.recommended_lps.map(lp => (
-                  <span key={lp.lp_id} className="lp-chip">{lp.lp_name}</span>
-                ))}
-              </div>
-            </>
-          )}
-
-          {rec.recommended_lps?.length === 0 && (
-            <>
-              <div className="section-label">Recommended LPs</div>
+              <div className="section-label">LP Status</div>
               <div style={{ color: 'var(--text-faint)', fontSize: 12, lineHeight: 1.55 }}>
                 {renderLPGap(rec)}
               </div>

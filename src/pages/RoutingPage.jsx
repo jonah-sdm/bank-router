@@ -104,9 +104,16 @@ export default function RoutingPage() {
   useDataChange('weights', reload);
 
   // ---------- dirty-state detection ----------
+  // Dirty when:
+  //   (a) a client is loaded and the form differs from the loaded snapshot, OR
+  //   (b) no client is loaded but the form has meaningful content (offer Save as New)
   const isDirty = useMemo(() => {
-    if (!originalSnapshot) return false;
-    return JSON.stringify(profile) !== JSON.stringify(originalSnapshot);
+    if (originalSnapshot) {
+      return JSON.stringify(profile) !== JSON.stringify(originalSnapshot);
+    }
+    return !!(profile.client_name || profile.business_vertical ||
+      profile.jurisdiction_country ||
+      (profile.settlement_currencies?.length > 0));
   }, [profile, originalSnapshot]);
 
   function applyLoadedClient(c) {
@@ -150,7 +157,12 @@ export default function RoutingPage() {
     setSaveArmed(false);
     try {
       const saved = await upsertClient(profile);
-      setOriginalSnapshot({ ...BLANK_PROFILE, ...saved });
+      // Supabase returns the full row including created_at / updated_at which
+      // the profile state doesn't track. Sync BOTH profile and originalSnapshot
+      // to the saved record so the dirty-state comparison stays stable.
+      const merged = { ...BLANK_PROFILE, ...saved };
+      setProfile(merged);
+      setOriginalSnapshot(merged);
       setSelectedClientId(saved.client_id);
       setSaveFlash(true);
       setTimeout(() => setSaveFlash(false), 1800);

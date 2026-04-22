@@ -2,6 +2,7 @@ import {
   BUSINESS_VERTICALS, ENTITY_TYPES, RISK_RATINGS, SDM_ENTITIES,
   PRIORITY_TIERS, SETTLEMENT_SLA, CLIENT_REQUESTABLE_NETWORKS
 } from '../engine/constants.js';
+import CountryPicker from './CountryPicker.jsx';
 
 const FIAT_CCYS   = ['USD','EUR','GBP','CAD','AED','CNY','CHF','JPY','SGD','HKD','AUD'];
 const TRADE_CCYS  = [...FIAT_CCYS, 'USDT','USDC','BTC','ETH','SOL'];
@@ -82,10 +83,12 @@ export default function ClientForm({ value, onChange }) {
             </select>
           </label>
           <label className="field">
-            Jurisdiction (ISO-2)
-            <input type="text" maxLength={2} value={v.jurisdiction_country || ''}
-              onChange={e => set({ jurisdiction_country: e.target.value.toUpperCase() })}
-              placeholder="US, CA, GB, AE..." className="mono" />
+            Jurisdiction
+            <CountryPicker
+              value={v.jurisdiction_country}
+              onChange={code => set({ jurisdiction_country: code })}
+              placeholder="Type country name, UK, USA, etc."
+            />
           </label>
           <label className="field">
             Risk Rating
@@ -163,10 +166,12 @@ export default function ClientForm({ value, onChange }) {
             </div>
           </label>
           <label className="field">
-            Beneficiary Country (ISO-2)
-            <input type="text" maxLength={2} value={v.beneficiary_country || ''}
-              onChange={e => set({ beneficiary_country: e.target.value.toUpperCase() })}
-              className="mono" placeholder="For Ripple eligibility" />
+            Beneficiary Country
+            <CountryPicker
+              value={v.beneficiary_country}
+              onChange={code => set({ beneficiary_country: code })}
+              placeholder="Where funds land (for Ripple eligibility)"
+            />
           </label>
           <label className="field">
             Uses Stablecoins

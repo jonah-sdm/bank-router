@@ -4,19 +4,18 @@ import { QuickAddProvider } from './lib/quickAddContext.jsx';
 import NavDropdown from './components/NavDropdown.jsx';
 import QuickAdd from './components/QuickAdd.jsx';
 import QuickAddHost from './components/QuickAddHost.jsx';
+import sdmLogo from './assets/sdm-logo.svg';
 
 export default function App() {
   return (
     <QuickAddProvider>
       <div className="app-shell">
         <header className="topbar">
-          <div className="brand">
-            <span className="brand-dot" />
-            <span>
-              SDM Atlas
-              <span className="kicker" style={{ marginLeft: 10 }}>Routing Engine</span>
-            </span>
-          </div>
+          <NavLink to="/routing" className="brand">
+            <img src={sdmLogo} alt="SDM" className="brand-logo" />
+            <span className="brand-divider" />
+            <span className="kicker">Routing Engine</span>
+          </NavLink>
 
           <nav className="topnav">
             <NavLink to="/routing" className={({ isActive }) => isActive ? 'active' : ''}>
