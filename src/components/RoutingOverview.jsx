@@ -158,26 +158,6 @@ export default function RoutingOverview({ clients, banks, lps, affinity, weights
         />
       </div>
 
-      {/* Aggregate portfolio stats bar */}
-      <div className="routing-overview-metrics">
-        <div className="roi-metric">
-          <span className="roi-metric-v">{stats.jurisdictionsCount}</span>
-          <span className="roi-metric-k">jurisdictions</span>
-        </div>
-        <div className="roi-metric">
-          <span className="roi-metric-v">{stats.totalLegs}</span>
-          <span className="roi-metric-k">currency legs</span>
-        </div>
-        <div className="roi-metric amber">
-          <span className="roi-metric-v">{stats.highConfPct}%</span>
-          <span className="roi-metric-k">high confidence</span>
-        </div>
-        <div className="roi-metric amber">
-          <span className="roi-metric-v">{stats.instantPct}%</span>
-          <span className="roi-metric-k">instant settlement</span>
-        </div>
-      </div>
-
       {!hasData ? (
         <div className="routing-overview-empty">
           Load clients and banks to see the portfolio routing breakdown.
