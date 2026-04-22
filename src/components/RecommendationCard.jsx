@@ -121,15 +121,53 @@ function LPFlowPicker({ lps, selected, onSelect, feedstock }) {
 
 export default function RecommendationCard({ rec }) {
   const isOverride = rec.is_manual_override;
-  const lps = rec.recommended_lps || [];
 
-  // Local state: which LP is the "active" pick. Defaults to the engine's
-  // first recommendation and resets whenever the LP list changes.
+  // Snapshot the engine's primary recommendation in the alternative-shape so
+  // we can put it back in the alternatives list when the user swaps.
+  const enginePrimary = rec.recommended_bank ? {
+    bank_id: rec.recommended_bank.bank_id,
+    bank_name: rec.recommended_bank.bank_name,
+    tier: rec.recommended_bank.tier,
+    pricing_tier: rec.recommended_bank.pricing_tier,
+    settlement_speed: rec.recommended_bank.settlement_speed,
+    network: rec.settlement_network,
+    feedstock_currency: rec.feedstock_currency,
+    fx_needed: rec.fx_needed,
+    recommended_lps: rec.recommended_lps || [],
+    lp_gap_reason: rec.lp_gap_reason,
+    bank: rec.recommended_bank,
+    score: rec.score,
+    match_pct: 100
+  } : null;
+
+  // Swap state: when non-null, this alternative is displayed as primary.
+  const [swappedTo, setSwappedTo] = useState(null);
+  useEffect(() => {
+    // Reset swap whenever the leg itself changes (different client loaded)
+    setSwappedTo(null);
+  }, [rec.currency_leg, rec.recommended_bank?.bank_id]);
+
+  // Resolve the active primary for display
+  const active = swappedTo ?? enginePrimary;
+
+  // Alternatives list = original alts minus the currently-active one + the
+  // engine's primary if we've swapped away from it
+  const allAlts = rec.alternatives || [];
+  const displayAlts = swappedTo
+    ? [
+        enginePrimary,
+        ...allAlts.filter(a => a.bank_id !== swappedTo.bank_id)
+      ].filter(Boolean)
+    : allAlts;
+
+  const lps = active?.recommended_lps || [];
+
+  // Local state: which LP is the "active" pick within the active bank.
   const [selectedLp, setSelectedLp] = useState(lps[0] || null);
   useEffect(() => {
     setSelectedLp(lps[0] || null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rec.currency_leg, lps.map(l => l.lp_id).join(',')]);
+  }, [active?.bank_id, lps.map(l => l.lp_id).join(',')]);
 
   return (
     <div className={`rec-card ${isOverride ? 'override' : ''}`}>
@@ -143,16 +181,30 @@ export default function RecommendationCard({ rec }) {
         )}
       </div>
 
-      {rec.recommended_bank ? (
+      {active ? (
         <>
-          <div className="bank-name">{rec.recommended_bank.bank_name}</div>
-          <div className="meta-row">
-            <span className={`badge tier-${rec.recommended_bank.tier}`}>{rec.recommended_bank.tier}</span>
-            {rec.settlement_network && (
-              <span className="badge network">{rec.settlement_network}</span>
+          <div className="bank-name">
+            {active.bank_name}
+            {swappedTo && (
+              <span className="swapped-chip" title="Manually swapped from the engine's pick">
+                swapped
+              </span>
             )}
-            <span className="badge">{rec.recommended_bank.pricing_tier}</span>
-            <span className="badge">{rec.recommended_bank.settlement_speed}</span>
+          </div>
+          <div className="meta-row">
+            <span className={`badge tier-${active.tier}`}>{active.tier}</span>
+            {active.network && (
+              <span className="badge network">{active.network}</span>
+            )}
+            <span className="badge">{active.pricing_tier}</span>
+            <span className="badge">{active.settlement_speed}</span>
+            {swappedTo && (
+              <button className="btn small ghost reset-swap"
+                onClick={() => setSwappedTo(null)}
+                title="Restore the engine's recommended bank">
+                ↺ Reset
+              </button>
+            )}
           </div>
 
           {/* Settlement flow — shows the bank acting as pass-through vs. doing FX */}
@@ -163,7 +215,7 @@ export default function RecommendationCard({ rec }) {
                 lps={lps}
                 selected={selectedLp}
                 onSelect={setSelectedLp}
-                feedstock={rec.feedstock_currency}
+                feedstock={active.feedstock_currency}
               />
             ) : (
               <div className="flow-step flow-lp flow-lp-empty">
@@ -174,11 +226,11 @@ export default function RecommendationCard({ rec }) {
               </div>
             )}
             <div className="flow-arrow">→</div>
-            <div className={`flow-step flow-bank ${rec.fx_needed ? 'fx' : ''}`}>
-              <div className="flow-step-label">{rec.recommended_bank?.bank_name}</div>
+            <div className={`flow-step flow-bank ${active.fx_needed ? 'fx' : ''}`}>
+              <div className="flow-step-label">{active.bank_name}</div>
               <div className="flow-step-value mono">
-                {rec.fx_needed
-                  ? `FX: ${rec.feedstock_currency} → ${rec.currency_leg}`
+                {active.fx_needed
+                  ? `FX: ${active.feedstock_currency} → ${rec.currency_leg}`
                   : 'passthrough'}
               </div>
             </div>
@@ -189,11 +241,11 @@ export default function RecommendationCard({ rec }) {
             </div>
           </div>
 
-          {rec.alternatives?.length > 0 && (
+          {displayAlts.length > 0 && (
             <>
               <div className="section-label">Alternative Banks</div>
               <ul className="alt-list">
-                {rec.alternatives.map(alt => (
+                {displayAlts.map(alt => (
                   <li key={alt.bank_id} className="alt-row">
                     <div className="alt-left">
                       <div className="alt-name">{alt.bank_name}</div>
@@ -203,6 +255,13 @@ export default function RecommendationCard({ rec }) {
                         {alt.pricing_tier && <> · {alt.pricing_tier}</>}
                       </div>
                     </div>
+                    <button
+                      className="alt-swap-btn"
+                      onClick={() => setSwappedTo(alt.bank_id === enginePrimary?.bank_id ? null : alt)}
+                      title={`Swap to ${alt.bank_name}`}
+                    >
+                      ⇌ Swap
+                    </button>
                     <div className="alt-match">
                       <div className="alt-match-bar">
                         <div className="alt-match-fill" style={{ width: `${alt.match_pct}%` }} />

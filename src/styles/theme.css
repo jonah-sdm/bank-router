@@ -1357,6 +1357,52 @@ table.data td .row-actions { display: flex; gap: 4px; justify-content: flex-end;
   font-size: 14px;
 }
 
+/* Swap indicator on the primary bank when user overrode the engine's pick */
+.swapped-chip {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  background: var(--amber-glow);
+  color: var(--amber);
+  border: 1px solid rgba(238, 193, 63, 0.35);
+  border-radius: 999px;
+  vertical-align: middle;
+  font-family: var(--font-mono);
+}
+.reset-swap {
+  font-size: 10.5px !important;
+  padding: 3px 10px !important;
+  color: var(--text-faint) !important;
+  margin-left: auto;
+}
+.reset-swap:hover { color: var(--amber) !important; border-color: var(--amber) !important; }
+
+/* Swap button on each alternative bank */
+.alt-swap-btn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  white-space: nowrap;
+}
+.alt-swap-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: var(--amber-glow);
+}
+
 /* Alternative banks list on the recommendation card */
 .alt-list {
   margin: 8px 0 0;
@@ -1369,13 +1415,13 @@ table.data td .row-actions { display: flex; gap: 4px; justify-content: flex-end;
 .alt-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 8px 10px;
   background: var(--bg-elev-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
+.alt-row .alt-left { flex: 1; min-width: 0; }
 .alt-left { min-width: 0; flex: 1; }
 .alt-name {
   font-size: 12.5px;

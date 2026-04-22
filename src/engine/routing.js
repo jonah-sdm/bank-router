@@ -432,19 +432,28 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
     }
     const fxNeeded = Boolean(feedstock && feedstock !== currency);
 
-    // Alternatives: up to 3 other eligible banks, each tagged with a crude
-    // match% (0/25/50/75/100) relative to the primary. 100 = essentially tied.
+    // Alternatives: up to 3 other eligible banks, each with FULL flow detail
+    // (network, feedstock, FX status, LPs) so the UI can swap any alternative
+    // into the primary slot and re-render the settlement flow accurately.
     const topScore = top?.score ?? 0;
-    const alternatives = scored.slice(1, 4).map(s => ({
-      bank_id: s.bank.bank_id,
-      bank_name: s.bank.bank_name,
-      tier: s.bank.tier,
-      pricing_tier: s.bank.pricing_tier,
-      settlement_speed: s.bank.settlement_speed,
-      network: s.network,
-      score: s.score,
-      match_pct: matchPctFromRatio(topScore > 0 ? s.score / topScore : 0)
-    }));
+    const alternatives = scored.slice(1, 4).map(s => {
+      const flow = buildBankFlow(profile, s, currency, lps);
+      return {
+        bank_id: s.bank.bank_id,
+        bank_name: s.bank.bank_name,
+        tier: s.bank.tier,
+        pricing_tier: s.bank.pricing_tier,
+        settlement_speed: s.bank.settlement_speed,
+        network: flow.network,
+        feedstock_currency: flow.feedstock_currency,
+        fx_needed: flow.fx_needed,
+        recommended_lps: flow.recommended_lps,
+        lp_gap_reason: flow.lp_gap_reason,
+        bank: s.bank,
+        score: s.score,
+        match_pct: matchPctFromRatio(topScore > 0 ? s.score / topScore : 0)
+      };
+    });
 
     return {
       currency_leg: currency,
