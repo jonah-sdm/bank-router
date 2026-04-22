@@ -5,7 +5,7 @@ import RecommendationCard from '../components/RecommendationCard.jsx';
 import CollapsibleCard from '../components/CollapsibleCard.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
-import ClientPicker from '../components/ClientPicker.jsx';
+import ClientListSidebar from '../components/ClientListSidebar.jsx';
 import { computeRouting } from '../engine/routing.js';
 import {
   listBanks, listLPs, listClients, getWeights, listAffinity, upsertClient
@@ -292,33 +292,15 @@ export default function RoutingPage() {
 
       {error && <div className="error-banner">{error}</div>}
 
-      <div className="split">
-        <div>
-          <CollapsibleCard
-            title="Client"
-            storageKey="sdm_routing_client"
-            summary={clientSummary}
-            headerRight={headerIndicator}
-          >
-            {dirtyStrip}
+      <div className="routing-split">
+        <ClientListSidebar
+          clients={clients}
+          selectedId={selectedClientId}
+          onSelect={loadClient}
+          onNew={() => loadClient('')}
+        />
 
-            <label className="field" style={{ marginBottom: 0 }}>
-              Load Existing Client
-              <ClientPicker
-                clients={clients}
-                value={selectedClientId}
-                onChange={loadClient}
-                placeholder="Search by name, vertical, country, risk, currency…"
-              />
-            </label>
-
-            <div className="load-divider">or configure below</div>
-
-            <ClientForm value={profile} onChange={setProfile} />
-          </CollapsibleCard>
-        </div>
-
-        <div>
+        <div className="routing-main">
           <div className="kpi-row">
             <div className="kpi">
               <div className="v">{kpi.total}</div>
@@ -338,12 +320,22 @@ export default function RoutingPage() {
             </div>
           </div>
 
+          <CollapsibleCard
+            title={selectedClientId && loadedClientName ? `Profile · ${loadedClientName}` : 'Client Profile'}
+            storageKey="sdm_routing_profile"
+            summary={clientSummary}
+            headerRight={headerIndicator}
+          >
+            {dirtyStrip}
+            <ClientForm value={profile} onChange={setProfile} />
+          </CollapsibleCard>
+
           {loading && <div className="empty-state">Loading registry…</div>}
 
           {!loading && recommendations.length === 0 && (
-            <div className="empty-state">
+            <div className="empty-state" style={{ marginTop: 16 }}>
               <div className="big">↳</div>
-              Fill out the client profile on the left to see routing recommendations.
+              Fill out the client profile above to see routing recommendations.
               <br /><br />
               <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>
                 Requires: SDM entity, business vertical, risk rating, and at least one settlement currency.
