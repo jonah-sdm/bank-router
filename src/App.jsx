@@ -4,7 +4,6 @@ import { QuickAddProvider } from './lib/quickAddContext.jsx';
 import NavDropdown from './components/NavDropdown.jsx';
 import QuickAdd from './components/QuickAdd.jsx';
 import QuickAddHost from './components/QuickAddHost.jsx';
-import AtlasSyncButton from './components/AtlasSyncButton.jsx';
 import sdmLogo from './assets/sdm-logo.svg';
 
 export default function App() {
@@ -51,7 +50,6 @@ export default function App() {
           </nav>
 
           <div className="topbar-right">
-            <AtlasSyncButton />
             <QuickAdd />
           </div>
         </header>
