@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ClientForm from '../components/ClientForm.jsx';
 import RecommendationCard from '../components/RecommendationCard.jsx';
-import CollapsibleCard from '../components/CollapsibleCard.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import ClientListSidebar from '../components/ClientListSidebar.jsx';
 import RoutingOverview from '../components/RoutingOverview.jsx';
+import ClientProfileCard from '../components/ClientProfileCard.jsx';
 import { computeRouting } from '../engine/routing.js';
 import {
   listBanks, listLPs, listClients, getWeights, listAffinity, upsertClient
@@ -51,6 +51,9 @@ export default function RoutingPage() {
 
   // "Save as new" modal
   const [saveAsNew, setSaveAsNew] = useState(null);
+
+  // Profile-edit modal (replaces the inline form)
+  const [editOpen, setEditOpen] = useState(false);
 
   // Load-different-client confirm when dirty
   const [pendingLoadId, setPendingLoadId] = useState(null);
@@ -203,20 +206,6 @@ export default function RoutingPage() {
     }
   }, [profile, banks, lps, weights, affinity]);
 
-  const clientSummary = useMemo(() => {
-    const bits = [
-      profile.client_name || null,
-      profile.sdm_entity ? profile.sdm_entity.replace('SDM_', '') : null,
-      profile.business_vertical || null,
-      profile.jurisdiction_country || null,
-      profile.risk_rating || null,
-      profile.settlement_currencies?.length ? profile.settlement_currencies.join(',') : null,
-      profile.settlement_speed_sla || null,
-      profile.priority_tier || null
-    ].filter(Boolean);
-    return bits.length ? bits.join(' · ') : 'no client loaded';
-  }, [profile]);
-
   const kpi = useMemo(() => {
     const total = recommendations.length;
     const high = recommendations.filter(r => r.confidence === 'HIGH').length;
@@ -229,52 +218,6 @@ export default function RoutingPage() {
 
   const loadedClientName = clients.find(c => c.client_id === selectedClientId)?.client_name;
   const loadedClientRecord = clients.find(c => c.client_id === selectedClientId);
-
-  // ---------- header indicator: amber dot when dirty, Edit-in-Admin link when clean ----------
-  const headerIndicator = (
-    <div className="save-header-indicator">
-      {saveFlash && <span className="save-flash">Saved ✓</span>}
-      {isDirty && <span className="dirty-dot" title="Unsaved changes" />}
-      {!isDirty && selectedClientId && loadedClientRecord && (
-        <button
-          className="btn small ghost edit-in-admin"
-          title="Edit this client in admin"
-          onClick={() => openQuickAdd({ kind: 'client', record: loadedClientRecord })}
-        >
-          Edit in Admin →
-        </button>
-      )}
-    </div>
-  );
-
-  // ---------- dirty strip: prominent save/discard row inside the card body ----------
-  const dirtyStrip = isDirty && (
-    <div className="dirty-strip">
-      <div className="dirty-strip-left">
-        <span className="dirty-strip-dot" />
-        <span className="dirty-strip-label">Unsaved changes</span>
-      </div>
-      <div className="dirty-strip-right">
-        {selectedClientId ? (
-          <>
-            <button className="btn small ghost" onClick={discard}>Discard</button>
-            <button
-              className={`btn small ${saveArmed ? 'armed' : 'primary'}`}
-              onClick={armOrSave}
-              title={`Save to ${loadedClientName}`}
-            >
-              {saveArmed ? 'Click again to confirm' : 'Save'}
-            </button>
-          </>
-        ) : (profile.client_name || profile.business_vertical) && (
-          <button className="btn small primary"
-            onClick={() => setSaveAsNew({ name: profile.client_name || '' })}>
-            Save as New Client…
-          </button>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -310,7 +253,38 @@ export default function RoutingPage() {
         />
 
         <div className="routing-main">
-          <div className="kpi-row">
+          <ClientProfileCard
+            profile={profile}
+            isDirty={isDirty}
+            isNew={!selectedClientId && !profile.client_name && !profile.business_vertical}
+            onEdit={() => setEditOpen(true)}
+            onNew={() => { loadClient(''); setEditOpen(true); }}
+          />
+
+          {isDirty && (
+            <div className="profile-dirty-actions">
+              <span className="profile-dirty-label">● You have unsaved changes.</span>
+              <button className="btn small ghost" onClick={discard}>Discard</button>
+              {selectedClientId ? (
+                <button
+                  className={`btn small ${saveArmed ? 'armed' : 'primary'}`}
+                  onClick={armOrSave}
+                  title={`Save to ${loadedClientName}`}
+                >
+                  {saveArmed ? 'Click again to confirm' : 'Save'}
+                </button>
+              ) : (
+                <button
+                  className="btn small primary"
+                  onClick={() => setSaveAsNew({ name: profile.client_name || '' })}
+                >
+                  Save as New Client…
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="kpi-row" style={{ marginTop: 16 }}>
             <div className="kpi">
               <div className="v">{kpi.total}</div>
               <div className="k">Currency legs</div>
@@ -329,23 +303,14 @@ export default function RoutingPage() {
             </div>
           </div>
 
-          <CollapsibleCard
-            title={selectedClientId && loadedClientName ? `Profile · ${loadedClientName}` : 'Client Profile'}
-            storageKey="sdm_routing_profile"
-            summary={clientSummary}
-            headerRight={headerIndicator}
-          >
-            {dirtyStrip}
-            <ClientForm value={profile} onChange={setProfile} />
-          </CollapsibleCard>
-
           {loading && <div className="empty-state">Loading registry…</div>}
 
           {!loading && recommendations.length === 0 && (
             <div className="empty-state" style={{ marginTop: 16 }}>
               <div className="big">↳</div>
-              Fill out the client profile above to see routing recommendations.
-              <br /><br />
+              {(selectedClientId || profile.client_name || profile.business_vertical)
+                ? <>Profile needs more details before routing can compute.<br /><br /></>
+                : <>Select a client from the sidebar, or click + New Client to create one.<br /><br /></>}
               <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>
                 Requires: SDM entity, business vertical, risk rating, and at least one settlement currency.
               </span>
@@ -359,6 +324,44 @@ export default function RoutingPage() {
           </div>
         </div>
       </div>
+
+      {/* Profile edit modal */}
+      {editOpen && (
+        <Modal
+          title={selectedClientId
+            ? `Edit ${loadedClientName || 'Client'}`
+            : 'New Client / Manual Input'}
+          onClose={() => setEditOpen(false)}
+          footer={<>
+            <button className="btn ghost" onClick={() => setEditOpen(false)}>
+              Close
+            </button>
+            {isDirty && (
+              <button className="btn ghost" onClick={() => { discard(); setEditOpen(false); }}>
+                Discard Changes
+              </button>
+            )}
+            {isDirty && selectedClientId && (
+              <button
+                className={`btn ${saveArmed ? 'armed' : 'primary'}`}
+                onClick={armOrSave}
+              >
+                {saveArmed ? 'Click again to confirm' : `Save to ${loadedClientName}`}
+              </button>
+            )}
+            {isDirty && !selectedClientId && (
+              <button
+                className="btn primary"
+                onClick={() => setSaveAsNew({ name: profile.client_name || '' })}
+              >
+                Save as New Client…
+              </button>
+            )}
+          </>}
+        >
+          <ClientForm value={profile} onChange={setProfile} />
+        </Modal>
+      )}
 
       {/* Confirm discard-before-load */}
       <ConfirmDialog
