@@ -3,6 +3,7 @@ import Modal from '../../components/Modal.jsx';
 import BankEditor from '../../components/BankEditor.jsx';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import SearchBox from '../../components/SearchBox.jsx';
+import Tooltip, { BANK_TIER_DESCRIPTIONS } from '../../components/Tooltip.jsx';
 import { listBanks, upsertBank, deleteBank } from '../../lib/dataStore.js';
 import { useDataChange } from '../../lib/dataEvents.js';
 
@@ -72,7 +73,11 @@ export default function BanksPage() {
             {filtered.map(b => (
               <tr key={b.bank_id}>
                 <td><strong>{b.bank_name}</strong></td>
-                <td><span className={`badge tier-${b.tier}`}>{b.tier}</span></td>
+                <td>
+                  <Tooltip content={BANK_TIER_DESCRIPTIONS[b.tier] || b.tier}>
+                    <span className={`badge tier-${b.tier}`}>{b.tier}</span>
+                  </Tooltip>
+                </td>
                 <td className="mono">{b.sdm_entity}</td>
                 <td className="mono">{(b.supported_currencies || []).join(', ')}</td>
                 <td className="mono">{(b.settlement_networks || []).join(', ')}</td>

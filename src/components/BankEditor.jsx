@@ -2,8 +2,9 @@ import { useState } from 'react';
 import {
   BANK_TIERS, SDM_ENTITIES, RISK_RATINGS, PRICING_TIERS,
   SETTLEMENT_SPEED, CLIENT_REQUESTABLE_NETWORKS, PROPRIETARY_NETWORKS,
-  PROPRIETARY_UPGRADES, BUSINESS_VERTICALS
+  PROPRIETARY_UPGRADES, BUSINESS_VERTICALS, LOW_PRIORITY_NETWORKS
 } from '../engine/constants.js';
+import { BANK_TIER_DESCRIPTIONS } from './Tooltip.jsx';
 
 const ALL_CCYS = ['USD','EUR','GBP','CAD','AED','CNY','CHF','JPY','SGD','HKD','AUD'];
 
@@ -29,6 +30,11 @@ export default function BankEditor({ value, onChange }) {
           <select value={v.tier || 'T2'} onChange={e => set({ tier: e.target.value })}>
             {BANK_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
+          {v.tier && BANK_TIER_DESCRIPTIONS[v.tier] && (
+            <div style={{ fontSize: 10.5, color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginTop: 4, lineHeight: 1.5 }}>
+              {BANK_TIER_DESCRIPTIONS[v.tier]}
+            </div>
+          )}
         </label>
         <label className="field">
           SDM Entity
@@ -119,16 +125,22 @@ export default function BankEditor({ value, onChange }) {
       <label className="field">
         Industry Rails
         <div style={{ fontSize: 10.5, color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginBottom: 4 }}>
-          Public rails clients can explicitly request. Pick the ones this bank can originate or receive.
+          Public rails clients can explicitly request. Pick the ones this bank can originate or receive. Rails are manually toggled — they are NOT auto-derived from currency.
         </div>
         <div className="checkbox-grid">
-          {CLIENT_REQUESTABLE_NETWORKS.map(n => (
-            <label key={n} className={v.settlement_networks?.includes(n) ? 'checked' : ''}>
-              <input type="checkbox" checked={!!v.settlement_networks?.includes(n)}
-                onChange={() => toggle('settlement_networks', n)} />
-              {n}
-            </label>
-          ))}
+          {CLIENT_REQUESTABLE_NETWORKS.map(n => {
+            const isLow = LOW_PRIORITY_NETWORKS.has(n);
+            return (
+              <label key={n}
+                className={`${v.settlement_networks?.includes(n) ? 'checked' : ''} ${isLow ? 'low-priority' : ''}`}
+                title={isLow ? 'Low priority — rarely used' : undefined}>
+                <input type="checkbox" checked={!!v.settlement_networks?.includes(n)}
+                  onChange={() => toggle('settlement_networks', n)} />
+                {n}
+                {isLow && <span style={{ marginLeft: 4, fontSize: 9, opacity: 0.6 }}>(rare)</span>}
+              </label>
+            );
+          })}
         </div>
       </label>
 

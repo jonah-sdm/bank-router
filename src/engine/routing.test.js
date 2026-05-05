@@ -20,7 +20,7 @@ const BANKS = [
     pricing_tier: 'COMPETITIVE', settlement_speed: 'INSTANT', is_active: true
   },
   {
-    bank_id: 'b3', bank_name: 'OpenPay', tier: 'T2', sdm_entity: 'SDM_INC',
+    bank_id: 'b3', bank_name: 'Openpayd', tier: 'T2', sdm_entity: 'SDM_INC',
     supported_currencies: ['USD','EUR','GBP'], settlement_networks: ['SWIFT'],
     max_client_risk: 'HIGH', accepts_individuals: true, blocked_verticals: [],
     pricing_tier: 'PREMIUM', settlement_speed: 'T1', is_active: true
@@ -122,24 +122,26 @@ describe('PRD Appendix A.2 — High-risk gaming (Paktra/Raw pattern)', () => {
     priority_tier: 'P1'
   };
 
-  it('excludes Customers Bank and BCB for USD leg (risk + vertical)', () => {
+  it('excludes Customers Bank and BCB for USD leg (risk only — vertical no longer filters)', () => {
     const { excluded } = excludeIneligibleBanks(profile, BANKS, 'USD');
     const names = excluded.map(e => e.bank_name);
+    // Both excluded because max_client_risk is MEDIUM and client is HIGH.
+    // Vertical-based exclusion was removed per the Curtis/Jim spec.
     expect(names).toContain('Customers Bank');
     expect(names).toContain('BCB Group');
   });
 
-  it('routes USD leg to OpenPay via SWIFT', () => {
+  it('routes USD leg to Openpayd via SWIFT', () => {
     const recs = computeRouting(profile, BANKS, LPS);
     const usd = recs.find(r => r.currency_leg === 'USD');
-    expect(usd.recommended_bank?.bank_name).toBe('OpenPay');
+    expect(usd.recommended_bank?.bank_name).toBe('Openpayd');
     expect(usd.settlement_network).toBe('SWIFT');
   });
 
-  it('routes EUR leg to OpenPay or Equals via SWIFT', () => {
+  it('routes EUR leg to Openpayd or Equals via SWIFT', () => {
     const recs = computeRouting(profile, BANKS, LPS);
     const eur = recs.find(r => r.currency_leg === 'EUR');
-    expect(['OpenPay', 'Equals Money']).toContain(eur.recommended_bank?.bank_name);
+    expect(['Openpayd', 'Equals Money']).toContain(eur.recommended_bank?.bank_name);
     expect(eur.settlement_network).toBe('SWIFT');
   });
 });
@@ -241,12 +243,12 @@ describe('Affinity rules (Layer 3)', () => {
     { rule_id: 'r1', label: 'CNY → Equals', currency: 'CNY', bank_id: 'b4', boost: 100, is_active: true },
     { rule_id: 'r2', label: 'CAD → ConnectFirst', currency: 'CAD', beneficiary_country: 'CA', bank_id: 'b6', boost: 100, is_active: true },
     { rule_id: 'r3', label: 'USD push Customers', currency: 'USD', required_sdm_entity: 'SDM_INC', required_risk: 'MEDIUM', bank_id: 'b1', boost: 100, is_active: true },
-    { rule_id: 'r4', label: 'USD HIGH → OpenPay', currency: 'USD', required_risk: 'HIGH', bank_id: 'b3', boost: 100, is_active: true },
+    { rule_id: 'r4', label: 'USD HIGH → Openpayd', currency: 'USD', required_risk: 'HIGH', bank_id: 'b3', boost: 100, is_active: true },
     { rule_id: 'r5', label: 'AED UAE stables → Ripple', currency: 'AED', beneficiary_country: 'AE', requires_stables_in: true, bank_id: 'b5', boost: 100, is_active: true },
     { rule_id: 'r6', label: 'USD + SDM_USA → Old Glory', currency: 'USD', required_sdm_entity: 'SDM_USA', bank_id: 'b8', boost: 100, is_active: true }
   ];
 
-  it('CNY client routes to Equals even though OpenPay also supports CNY', () => {
+  it('CNY client routes to Equals even though Openpayd also supports CNY', () => {
     const profile = {
       entity_type: 'CORPORATION', business_vertical: 'PSP',
       sdm_entity: 'SDM_INC', risk_rating: 'MEDIUM',
@@ -273,7 +275,7 @@ describe('Affinity rules (Layer 3)', () => {
     expect(leg.affinity_bonus).toBe(100);
   });
 
-  it('USD HIGH-risk client still routes to OpenPay via affinity (Customers/BCB excluded anyway)', () => {
+  it('USD HIGH-risk client still routes to Openpayd via affinity (Customers/BCB excluded anyway)', () => {
     const profile = {
       entity_type: 'CORPORATION', business_vertical: 'GAMING',
       sdm_entity: 'SDM_INC', risk_rating: 'HIGH',
@@ -282,7 +284,7 @@ describe('Affinity rules (Layer 3)', () => {
       uses_stablecoins: false
     };
     const [leg] = computeRouting(profile, BANKS, LPS, undefined, RULES);
-    expect(leg.recommended_bank?.bank_name).toBe('OpenPay');
+    expect(leg.recommended_bank?.bank_name).toBe('Openpayd');
     expect(leg.affinity_bonus).toBe(100);
   });
 
@@ -369,7 +371,7 @@ describe('Proprietary network upgrades', () => {
     expect(leg.settlement_network).toBe('BLINK');  // upgraded from SWIFT
   });
 
-  it('OpenPay stays on SWIFT for HIGH-risk since it has no proprietary rail', () => {
+  it('Openpayd stays on SWIFT for HIGH-risk since it has no proprietary rail', () => {
     const profile = {
       entity_type: 'CORPORATION', business_vertical: 'GAMING',
       sdm_entity: 'SDM_INC', risk_rating: 'HIGH',
@@ -378,7 +380,7 @@ describe('Proprietary network upgrades', () => {
       uses_stablecoins: false
     };
     const [leg] = computeRouting(profile, BANKS, LPS);
-    expect(leg.recommended_bank?.bank_name).toBe('OpenPay');
+    expect(leg.recommended_bank?.bank_name).toBe('Openpayd');
     expect(leg.settlement_network).toBe('SWIFT');
   });
 });

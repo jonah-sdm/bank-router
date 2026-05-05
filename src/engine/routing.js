@@ -14,12 +14,43 @@
 import {
   RIPPLE_CORRIDORS,
   DEFAULT_WEIGHTS,
+  DEFAULT_FACTORS,
   TIER_SCORE,
   PRICING_SCORE,
   SPEED_MATCHES,
   BONUS_NETWORKS,
   PROPRIETARY_UPGRADES
 } from './constants.js';
+
+// Normalize any incoming weights config into a flat { factor_id: weight } map.
+// Accepts:
+//   - undefined / null               → use DEFAULT_FACTORS
+//   - { factors: [{id, weight, ...}] } (new extensible shape)
+//   - { network_bonus_weight: 50, tier_weight: 30, ... } (legacy flat shape)
+//   - mixed (factors[] takes precedence; legacy keys fill gaps)
+//
+// New scoring factors can be introduced over time by adding entries to
+// DEFAULT_FACTORS — they will appear automatically with their default weight
+// unless an admin overrides them in the registry.
+function normalizeWeights(weights) {
+  const out = {};
+  // Start with defaults so missing factors fall back gracefully
+  for (const f of DEFAULT_FACTORS) out[f.id] = f.weight;
+
+  if (weights && Array.isArray(weights.factors)) {
+    for (const f of weights.factors) {
+      if (f && typeof f.id === 'string') out[f.id] = Number(f.weight) || 0;
+    }
+  }
+  // Legacy keys (`<id>_weight`) override or supplement the factor list
+  if (weights && typeof weights === 'object') {
+    for (const f of DEFAULT_FACTORS) {
+      const legacy = weights[`${f.id}_weight`];
+      if (legacy !== undefined) out[f.id] = Number(legacy) || 0;
+    }
+  }
+  return out;
+}
 
 // --------------------------- helpers ---------------------------
 
@@ -145,22 +176,11 @@ export function excludeIneligibleBanks(profile, banks, currency) {
       continue;
     }
 
-    // 5.2.6 vertical blocked / not whitelisted
-    if (has(bank.blocked_verticals, profile.business_vertical)) {
-      excluded.push({
-        bank_id: bank.bank_id, bank_name: bank.bank_name,
-        reason: `Vertical ${profile.business_vertical} is blocked`
-      });
-      continue;
-    }
-    if (bank.accepted_verticals && bank.accepted_verticals.length > 0 &&
-        !has(bank.accepted_verticals, profile.business_vertical)) {
-      excluded.push({
-        bank_id: bank.bank_id, bank_name: bank.bank_name,
-        reason: `Vertical ${profile.business_vertical} not in accepted_verticals`
-      });
-      continue;
-    }
+    // 5.2.6 vertical-based exclusion REMOVED per Curtis/Jim product call —
+    // vertical no longer drives routing. The blocked_verticals[] / accepted_verticals[]
+    // fields stay on banks as informational / cross-trade-signal context but
+    // do not filter eligibility. Routing is driven by jurisdiction, currency,
+    // risk, and entity type only.
 
     // 5.2.7 Ripple-specific constraints
     if (has(bank.settlement_networks, 'RIPPLE_ODL') &&
@@ -212,14 +232,15 @@ export function computeAffinity(profile, bank, currency, rules = []) {
 // --------------------------- scoring (PRD §5.3 + affinity layer) ---------------------------
 
 export function scoreBanks(profile, eligible, currency, weights = DEFAULT_WEIGHTS, affinityRules = []) {
-  const w = { ...DEFAULT_WEIGHTS, ...weights };
-  const sum = w.tier_weight + w.settlement_speed_weight + w.pricing_weight +
-              w.network_bonus_weight + w.priority_bonus_weight;
-
-  // Normalize so weights sum to 1 even if admin set them to arbitrary numbers
-  const norm = k => (sum > 0 ? w[k] / sum : 0);
+  // Normalize incoming weights (factors[] OR flat shape) → { factor_id: weight }
+  const w = normalizeWeights(weights);
+  const sum = Object.values(w).reduce((s, v) => s + (Number(v) || 0), 0);
+  const norm = id => (sum > 0 ? (w[id] || 0) / sum : 0);
 
   return eligible.map(bank => {
+    // ---- per-factor raw scores (0-100) ----
+    // Each factor has a stable id matching DEFAULT_FACTORS[].id. To add a new
+    // scoring factor, register it in DEFAULT_FACTORS and compute its score here.
     const tierS = TIER_SCORE[bank.tier] ?? 0;
 
     const allowedSpeeds = SPEED_MATCHES[profile.settlement_speed_sla] ?? [];
@@ -235,12 +256,21 @@ export function scoreBanks(profile, eligible, currency, weights = DEFAULT_WEIGHT
       (bank.settlement_speed === 'INSTANT' || bank.settlement_speed === 'SAME_DAY')
         ? 100 : 0;
 
+    const factorScores = {
+      network_bonus:    networkS,
+      tier:             tierS,
+      settlement_speed: speedS,
+      pricing:          pricingS,
+      priority:         priorityS
+    };
+
+    // Weighted sum across whatever factors are configured
     const baseScore =
-      tierS     * norm('tier_weight') +
-      speedS    * norm('settlement_speed_weight') +
-      pricingS  * norm('pricing_weight') +
-      networkS  * norm('network_bonus_weight') +
-      priorityS * norm('priority_bonus_weight');
+      factorScores.tier             * norm('tier') +
+      factorScores.settlement_speed * norm('settlement_speed') +
+      factorScores.pricing          * norm('pricing') +
+      factorScores.network_bonus    * norm('network_bonus') +
+      factorScores.priority         * norm('priority');
 
     const { bonus: affinityS, applied: affinityApplied } =
       computeAffinity(profile, bank, currency, affinityRules);
@@ -254,7 +284,12 @@ export function scoreBanks(profile, eligible, currency, weights = DEFAULT_WEIGHT
       base_score: Math.round(baseScore * 100) / 100,
       affinity_bonus: affinityS,
       affinity_applied: affinityApplied,
-      breakdown: { tierS, speedS, pricingS, networkS, priorityS, affinityS }
+      breakdown: {
+        ...factorScores,
+        affinityS,
+        // Legacy aliases retained for any existing UI consumers
+        tierS, speedS, pricingS, networkS, priorityS
+      }
     };
   }).sort((a, b) => b.score - a.score);
 }
@@ -301,8 +336,8 @@ export function selectLPs(profile, bank, network, currency, lps) {
 // genuinely ambiguous (OTHER vertical, or no eligible banks at all).
 
 function computeConfidence(profile, scored) {
+  // Vertical no longer affects engine — only "no eligible bank" triggers LOW.
   if (scored.length === 0) return 'LOW';
-  if (profile.business_vertical === 'OTHER') return 'LOW';
   return 'HIGH';
 }
 
@@ -389,7 +424,7 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
     // Feedstock = what the bank will receive from the LP.
     //
     // SDM's operational default (per Curtis): route through USD whenever FX
-    // is needed. Cubix LPs all trade in USD, BCB/Customers/OpenPay/Equals
+    // is needed. Cubix LPs all trade in USD, BCB/Customers/Openpayd/Equals
     // all accept USD feedstock — it's the universal on-ramp.
     //
     // Priority:
@@ -481,9 +516,7 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
       })),
       exclusion_log: excluded,
       confidence: computeConfidence(profile, scored),
-      manual_review_flag:
-        profile.business_vertical === 'OTHER' ||
-        scored.length === 0
+      manual_review_flag: scored.length === 0
     };
   });
 }

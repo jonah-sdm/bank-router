@@ -4,28 +4,28 @@
 export const MOCK_BANKS = [
   { bank_id: 'm-customers', bank_name: 'Customers Bank', tier: 'T1', sdm_entity: 'SDM_INC',
     supported_currencies: ['USD'], accepts_lp_currencies: ['USD'],
-    settlement_networks: ['FEDWIRE','CUBIX'],
+    settlement_networks: ['FEDWIRE','CUBIX','ACH'],
     max_client_risk: 'MEDIUM', accepts_individuals: true,
     blocked_verticals: ['GAMING','GAMBLING','ATM_OPERATOR'],
     pricing_tier: 'BEST', settlement_speed: 'INSTANT', is_active: true,
     notes: 'USD domestic ONLY. Best pricing for USD. Cubix = instant/free settlements.' },
   { bank_id: 'm-bcb', bank_name: 'BCB Group', tier: 'T1', sdm_entity: 'SDM_INC',
     supported_currencies: ['USD','GBP','EUR'], accepts_lp_currencies: ['USD','GBP','EUR'],
-    settlement_networks: ['SWIFT','BLINK'],
+    settlement_networks: ['SWIFT','BLINK','SEPA','FASTER_PAYMENTS'],
     max_client_risk: 'MEDIUM', accepts_individuals: false,
     blocked_verticals: ['GAMING','GAMBLING','ATM_OPERATOR'],
     pricing_tier: 'COMPETITIVE', settlement_speed: 'INSTANT', is_active: true,
     notes: 'Multi-currency. Blink = near-instant/free via Nonco/Flowdesk.' },
-  { bank_id: 'm-openpay', bank_name: 'OpenPay', tier: 'T2', sdm_entity: 'SDM_INC',
+  { bank_id: 'm-openpay', bank_name: 'Openpayd', tier: 'T2', sdm_entity: 'SDM_INC',
     supported_currencies: ['USD','EUR','GBP','CHF','JPY','SGD','HKD','AUD'],
     accepts_lp_currencies: ['USD','EUR','GBP'],
-    settlement_networks: ['SWIFT'], max_client_risk: 'HIGH', accepts_individuals: true,
+    settlement_networks: ['SWIFT','SEPA','FASTER_PAYMENTS'], max_client_risk: 'HIGH', accepts_individuals: true,
     blocked_verticals: [], pricing_tier: 'PREMIUM', settlement_speed: 'T1', is_active: true,
     notes: 'Higher fees. Lenient on risk. Primary high-risk client bank. Takes USD/EUR/GBP from LPs, does FX to other currencies.' },
   { bank_id: 'm-equals', bank_name: 'Equals Money', tier: 'T2', sdm_entity: 'SDM_INC',
     supported_currencies: ['USD','EUR','GBP','CNY','CHF','JPY','SGD','HKD','AUD','AED'],
     accepts_lp_currencies: ['USD','EUR','GBP','CNY'],
-    settlement_networks: ['SWIFT'], max_client_risk: 'HIGH', accepts_individuals: true,
+    settlement_networks: ['SWIFT','SEPA','FASTER_PAYMENTS'], max_client_risk: 'HIGH', accepts_individuals: true,
     blocked_verticals: [], pricing_tier: 'PREMIUM', settlement_speed: 'T1', is_active: true,
     notes: 'Primary FX bank. Accepts USD/EUR/GBP/CNY from LPs, converts to any supported currency including AED.' },
   { bank_id: 'm-ripple', bank_name: 'Ripple (ODL)', tier: 'T2_SPECIALIST', sdm_entity: 'SDM_INC',
@@ -36,11 +36,12 @@ export const MOCK_BANKS = [
     pricing_tier: 'BEST', settlement_speed: 'INSTANT', is_active: true,
     notes: 'SPECIALIST: stables-in, fiat-out ONLY. LP provides USDT/USDC; Ripple does conversion + delivery in target currency.' },
   { bank_id: 'm-neo', bank_name: 'Neo Financial', tier: 'T2', sdm_entity: 'SDM_INC',
-    supported_currencies: ['CAD'], accepts_lp_currencies: ['CAD'],
-    settlement_networks: ['EFT'],
+    supported_currencies: ['CAD','USD','EUR','AED','CNY'],
+    accepts_lp_currencies: ['CAD','USD','EUR'],
+    settlement_networks: ['SWIFT'],
     max_client_risk: 'MEDIUM', accepts_individuals: true, blocked_verticals: [],
     pricing_tier: 'STANDARD', settlement_speed: 'T1', is_active: true,
-    notes: 'Deprecated for most clients. Only ~2 clients remain.' },
+    notes: 'Multi-currency. SWIFT only — no Fedwire. AED/CNY wallets exist but untested; trading desk to confirm before sending volume.' },
   { bank_id: 'm-connectfirst', bank_name: 'ConnectFirst CU', tier: 'T1_CAD', sdm_entity: 'SDM_INC',
     supported_currencies: ['CAD'], accepts_lp_currencies: ['CAD'],
     settlement_networks: ['EFT'],
@@ -56,7 +57,7 @@ export const MOCK_BANKS = [
     notes: 'Single-client bank. Not for new client routing.' },
   { bank_id: 'm-oldglory', bank_name: 'Old Glory Bank', tier: 'T3', sdm_entity: 'SDM_USA',
     supported_currencies: ['USD'], accepts_lp_currencies: ['USD'],
-    settlement_networks: ['FEDWIRE'],
+    settlement_networks: ['FEDWIRE','ACH'],
     max_client_risk: 'LOW', accepts_individuals: true,
     blocked_verticals: ['GAMING','GAMBLING','ATM_OPERATOR'],
     pricing_tier: 'STANDARD', settlement_speed: 'SAME_DAY', is_active: true,
@@ -68,17 +69,23 @@ export const MOCK_LPS = [
     settlement_networks: ['BLINK','SWIFT'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true },
   { lp_id: 'm-flowdesk', lp_name: 'Flowdesk', supported_currencies: ['USD','EUR','GBP'],
     settlement_networks: ['BLINK','SWIFT'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true },
-  { lp_id: 'm-dv', lp_name: 'DV Trading', supported_currencies: ['CAD'],
-    settlement_networks: ['EFT'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true },
+  { lp_id: 'm-dv', lp_name: 'DV Trading', supported_currencies: ['CAD','USD','EUR','GBP'],
+    settlement_networks: ['EFT','SWIFT','CUBIX'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true,
+    notes: 'Multi-currency: CAD primary (EFT to ConnectFirst), plus USD/EUR/GBP via SWIFT or Cubix.' },
   { lp_id: 'm-cumberland', lp_name: 'Cumberland', supported_currencies: ['USD'],
     settlement_networks: ['CUBIX','FEDWIRE'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true },
   { lp_id: 'm-b2c2', lp_name: 'B2C2', supported_currencies: ['USD','EUR','GBP'],
     settlement_networks: ['CUBIX','SWIFT'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true },
   { lp_id: 'm-fireblocks', lp_name: 'Fireblocks (custody)', supported_currencies: ['USDT','USDC','BTC','ETH'],
     settlement_networks: ['CRYPTO','RIPPLE_ODL'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true },
-  { lp_id: 'm-grandpay', lp_name: 'Grand Pay', supported_currencies: ['CNY','USD'],
-    settlement_networks: ['SWIFT'], preferred_banks: ['m-equals'], risk_tolerance: 'MEDIUM', is_active: true,
-    notes: 'CNY originator/counterparty per Curtis transcript. CNY → Equals → USD conversion flow.' }
+  { lp_id: 'm-enigma', lp_name: 'Enigma', supported_currencies: ['USD','EUR','GBP'],
+    settlement_networks: ['SWIFT'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true,
+    notes: 'OTC desk added per product call. Trading desk to confirm full currency/network coverage.' },
+  { lp_id: 'm-wintermute', lp_name: 'Wintermute', supported_currencies: ['USD','EUR','GBP'],
+    settlement_networks: ['SWIFT'], preferred_banks: [], risk_tolerance: 'MEDIUM', is_active: true,
+    notes: 'OTC desk added per product call. Trading desk to confirm full currency/network coverage.' }
+  // NOTE: Grand Pay removed — it is a CLIENT (CNY originator), not an LP.
+  // Re-modeled as a client whose CNY flow settles through Equals.
 ];
 
 export const MOCK_CLIENTS = [
@@ -102,9 +109,23 @@ export const MOCK_CLIENTS = [
     beneficiary_country: 'CA', uses_stablecoins: false, priority_tier: 'P2', is_active: true }
 ];
 
+// Demo-mode weights — uses the extensible factor shape introduced per the
+// Curtis/Jim product call. Network bonus is #1 (intra-system rails dominate),
+// then bank tier, settlement speed, pricing, priority bonus.
 export const MOCK_WEIGHTS = {
-  id: 1, tier_weight: 30, settlement_speed_weight: 25, pricing_weight: 20,
-  network_bonus_weight: 15, priority_bonus_weight: 10
+  id: 1,
+  factors: [
+    { id: 'network_bonus',    label: 'Network Bonus',         weight: 50,
+      description: 'Intra-system rails (Blink / Cubix / Ripple ODL) settle instantly and free with our LPs. Dominates routing when both sides are on the same network.' },
+    { id: 'tier',             label: 'Bank Tier',             weight: 30,
+      description: 'T1=100 (preferred), T2=60, T2_SPECIALIST=50, T1_CAD=100, T3=30, T3_DEDICATED=30.' },
+    { id: 'settlement_speed', label: 'Settlement Speed',      weight: 25,
+      description: 'Full 100 if bank speed matches client SLA. Zero on mismatch.' },
+    { id: 'pricing',          label: 'Pricing Tier',          weight: 20,
+      description: 'BEST=100, COMPETITIVE=80, STANDARD=50, PREMIUM=20.' },
+    { id: 'priority',         label: 'Priority Client Bonus', weight: 10,
+      description: 'P1 client × INSTANT/SAME_DAY bank: +100.' }
+  ]
 };
 
 // ---------------------------------------------------------------------
@@ -155,11 +176,11 @@ export const MOCK_AFFINITY_RULES = [
     required_sdm_entity: 'SDM_INC', required_risk: 'MEDIUM',
     bank_id: 'm-bcb', boost: 70, sort_order: 41, is_active: true,
     rationale: 'BCB is the primary EUR/GBP bank for non-high-risk SDM Inc. clients.' },
-  { rule_id: 'a-eur-high',     label: 'EUR (HIGH risk) → OpenPay',
+  { rule_id: 'a-eur-high',     label: 'EUR (HIGH risk) → Openpayd',
     currency: 'EUR', beneficiary_country: null, requires_stables_in: null,
     required_sdm_entity: null, required_risk: 'HIGH',
     bank_id: 'm-openpay', boost: 80, sort_order: 42, is_active: true,
-    rationale: 'HIGH-risk clients cannot use BCB for EUR (Maple Wave rejection pattern). OpenPay is lenient.' },
+    rationale: 'HIGH-risk clients cannot use BCB for EUR (Maple Wave rejection pattern). Openpayd is lenient.' },
 
   // GBP
   { rule_id: 'a-gbp-uk-s',     label: 'GBP + UK + stables-in → Ripple ODL',
@@ -172,11 +193,11 @@ export const MOCK_AFFINITY_RULES = [
     required_sdm_entity: 'SDM_INC', required_risk: 'MEDIUM',
     bank_id: 'm-bcb', boost: 70, sort_order: 51, is_active: true,
     rationale: 'BCB is primary GBP bank for non-high-risk SDM Inc. clients.' },
-  { rule_id: 'a-gbp-high',     label: 'GBP (HIGH risk) → OpenPay',
+  { rule_id: 'a-gbp-high',     label: 'GBP (HIGH risk) → Openpayd',
     currency: 'GBP', beneficiary_country: null, requires_stables_in: null,
     required_sdm_entity: null, required_risk: 'HIGH',
     bank_id: 'm-openpay', boost: 80, sort_order: 52, is_active: true,
-    rationale: 'HIGH-risk clients cannot use BCB. OpenPay is lenient on risk.' },
+    rationale: 'HIGH-risk clients cannot use BCB. Openpayd is lenient on risk.' },
 
   // USD
   { rule_id: 'a-usd-custom-m', label: 'USD → Customers Bank (strategic push, MEDIUM risk)',
@@ -194,11 +215,11 @@ export const MOCK_AFFINITY_RULES = [
     required_sdm_entity: 'SDM_INC', required_risk: 'MEDIUM',
     bank_id: 'm-bcb', boost: 60, sort_order: 62, is_active: true,
     rationale: 'BCB = next-best USD pricing. Blink via Nonco/Flowdesk = near-instant. Braza flow.' },
-  { rule_id: 'a-usd-high',     label: 'USD (HIGH risk) → OpenPay',
+  { rule_id: 'a-usd-high',     label: 'USD (HIGH risk) → Openpayd',
     currency: 'USD', beneficiary_country: null, requires_stables_in: null,
     required_sdm_entity: null, required_risk: 'HIGH',
     bank_id: 'm-openpay', boost: 100, sort_order: 63, is_active: true,
-    rationale: 'Paktra/Raw pattern. HIGH-risk USD clients go to OpenPay (Customers/BCB would flag + shut down).' },
+    rationale: 'Paktra/Raw pattern. HIGH-risk USD clients go to Openpayd (Customers/BCB would flag + shut down).' },
   { rule_id: 'a-usd-china-s',  label: 'USD + China + stables-in → Ripple ODL',
     currency: 'USD', beneficiary_country: 'CN', requires_stables_in: true,
     required_sdm_entity: null, required_risk: null,

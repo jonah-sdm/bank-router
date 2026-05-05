@@ -67,10 +67,10 @@ export default function ClientProfileCard({ profile, isDirty = false, onEdit, on
 
       {/* Info grid */}
       <div className="profile-grid">
-        <ProfileField label="Business Vertical">
+        <ProfileField label="Vertical (reference)">
           {profile.business_vertical ? (
             <>
-              <span className="profile-value-primary mono">{profile.business_vertical}</span>
+              <span className="profile-value-primary mono" style={{ opacity: 0.85 }}>{profile.business_vertical}</span>
               {verticalLabel && <span className="profile-value-sub">{verticalLabel}</span>}
             </>
           ) : <span className="profile-value-empty">—</span>}

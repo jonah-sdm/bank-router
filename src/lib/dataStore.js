@@ -151,20 +151,56 @@ export async function deleteClient(client_id) {
 }
 
 // -------- weights --------
+// Returns the row in the new factor-list shape ({ factors: [...] }) regardless
+// of whether Supabase has the JSONB column populated yet — we synthesize it
+// from the legacy typed columns if needed.
 export async function getWeights() {
   if (HAS_SUPABASE) {
     const rows = await sb(supabase.from('scoring_weights').select('*').eq('id', 1));
-    return rows[0] ?? { ...MOCK_WEIGHTS };
+    const row = rows[0];
+    if (!row) return { ...MOCK_WEIGHTS };
+    if (row.weights && Array.isArray(row.weights.factors)) return row;
+    // Synthesize factors[] from legacy typed columns for back-compat
+    return {
+      ...row,
+      weights: {
+        factors: [
+          { id: 'network_bonus',    label: 'Network Bonus',         weight: row.network_bonus_weight     ?? 50 },
+          { id: 'tier',             label: 'Bank Tier',             weight: row.tier_weight              ?? 30 },
+          { id: 'settlement_speed', label: 'Settlement Speed',      weight: row.settlement_speed_weight  ?? 25 },
+          { id: 'pricing',          label: 'Pricing Tier',          weight: row.pricing_weight           ?? 20 },
+          { id: 'priority',         label: 'Priority Client Bonus', weight: row.priority_bonus_weight    ?? 10 }
+        ]
+      }
+    };
   }
   return { ...mem.weights };
 }
+
 export async function updateWeights(row) {
   let result;
   if (HAS_SUPABASE) {
-    result = await sb(supabase.from('scoring_weights').update(row).eq('id', 1).select().single());
+    // Normalize the incoming row: write the JSONB column AND mirror to the
+    // legacy typed columns so any old consumer keeps working.
+    const factors = row.factors || row.weights?.factors || [];
+    const byId = Object.fromEntries(factors.map(f => [f.id, Number(f.weight) || 0]));
+    const update = {
+      weights: { factors },
+      tier_weight:             byId.tier             ?? 30,
+      settlement_speed_weight: byId.settlement_speed ?? 25,
+      pricing_weight:          byId.pricing          ?? 20,
+      network_bonus_weight:    byId.network_bonus    ?? 50,
+      priority_bonus_weight:   byId.priority         ?? 10
+    };
+    result = await sb(supabase.from('scoring_weights').update(update).eq('id', 1).select().single());
   } else {
     const old = { ...mem.weights };
-    mem.weights = { ...mem.weights, ...row };
+    // Demo mode — accept either factor-list or flat shape
+    if (row.factors) {
+      mem.weights = { ...mem.weights, factors: row.factors };
+    } else {
+      mem.weights = { ...mem.weights, ...row };
+    }
     logAudit('scoring_weights', '1', 'UPDATE', old, mem.weights);
     result = mem.weights;
   }

@@ -22,14 +22,32 @@ export const RISK_RATINGS = ['LOW', 'MEDIUM', 'HIGH'];
 export const KYC_STATUSES = ['PENDING', 'APPROVED', 'EDD_REQUIRED'];
 
 export const SETTLEMENT_NETWORKS = [
-  'FEDWIRE', 'SWIFT', 'EFT', 'BLINK', 'CUBIX', 'RIPPLE_ODL', 'CRYPTO'
+  // Public industry rails
+  'FEDWIRE',          // USD domestic (US)
+  'SEPA',             // EUR domestic (EU) — instant, daily-use
+  'FASTER_PAYMENTS',  // GBP domestic (UK) — instant, daily-use
+  'ACH',              // USD domestic (US) — slower, low-priority, rarely used
+  'SWIFT',            // International multi-currency
+  'EFT',              // CAD domestic
+  // Bank-proprietary instant networks (auto-selected, not user-requested)
+  'BLINK',
+  'CUBIX',
+  'RIPPLE_ODL',
+  // Crypto/custody settlement
+  'CRYPTO'
 ];
 
 // Industry-standard rails that a client can explicitly request.
 // Proprietary/instant networks (BLINK/CUBIX/RIPPLE_ODL) are NOT in this list —
 // they are bank-internal rails declared on the bank profile and auto-selected
 // by the engine when eligible.
-export const CLIENT_REQUESTABLE_NETWORKS = ['FEDWIRE', 'SWIFT', 'EFT'];
+export const CLIENT_REQUESTABLE_NETWORKS = [
+  'FEDWIRE', 'SEPA', 'FASTER_PAYMENTS', 'SWIFT', 'EFT', 'ACH'
+];
+
+// Visual de-emphasis hint for the UI — these rails should be sorted last
+// and rendered with reduced visual weight (rarely used).
+export const LOW_PRIORITY_NETWORKS = new Set(['ACH']);
 
 // Bank-proprietary instant/free networks. A bank with one of these is
 // effectively "upgraded" from the industry rail it covers.
@@ -62,14 +80,52 @@ export const RIPPLE_CORRIDORS = {
   AED: ['AE']
 };
 
-// Scoring factor defaults — PRD §5.3
-export const DEFAULT_WEIGHTS = {
-  tier_weight: 30,
-  settlement_speed_weight: 25,
-  pricing_weight: 20,
-  network_bonus_weight: 15,
-  priority_bonus_weight: 10
-};
+// Scoring factor defaults — extensible factor list.
+// Each factor has a stable `id` (engine knows how to compute its per-bank score),
+// a human label, a description for the admin UI, and a weight. Order in this
+// array is the display order on the Weights admin page; ops can reorder/edit.
+//
+// Per Curtis/Jim: network bonus is #1 (intra-system Cubix/Blink/Ripple settle
+// instantly and free with our LPs — should dominate routing decisions).
+export const DEFAULT_FACTORS = [
+  {
+    id: 'network_bonus',
+    label: 'Network Bonus',
+    weight: 50,
+    description: 'Intra-system rails (Blink / Cubix / Ripple ODL) settle instantly and free with our LPs. Dominates routing when both client and LP are on the same network.'
+  },
+  {
+    id: 'tier',
+    label: 'Bank Tier',
+    weight: 30,
+    description: 'T1=100 (preferred), T2=60, T2_SPECIALIST=50, T1_CAD=100, T3=30, T3_DEDICATED=30. Reflects fee, speed, and reliability profile.'
+  },
+  {
+    id: 'settlement_speed',
+    label: 'Settlement Speed',
+    weight: 25,
+    description: 'Full 100 if the bank can meet the client SLA (e.g. T0_SAME_DAY needs INSTANT or SAME_DAY bank speed). Zero on mismatch.'
+  },
+  {
+    id: 'pricing',
+    label: 'Pricing Tier',
+    weight: 20,
+    description: 'BEST=100, COMPETITIVE=80, STANDARD=50, PREMIUM=20.'
+  },
+  {
+    id: 'priority',
+    label: 'Priority Client Bonus',
+    weight: 10,
+    description: 'P1 client × INSTANT/SAME_DAY bank: +100. Otherwise 0. Bumps T+0 SLA clients toward instant rails.'
+  }
+];
+
+// Legacy flat shape — DEFAULT_WEIGHTS — kept for back-compat with old engine
+// callers. New code should use DEFAULT_FACTORS. Both shapes resolve to the
+// same values via the engine's normalizeFactors() helper.
+export const DEFAULT_WEIGHTS = Object.fromEntries(
+  DEFAULT_FACTORS.map(f => [`${f.id}_weight`, f.weight])
+);
 
 // Tier → base score (PRD §5.3)
 export const TIER_SCORE = {

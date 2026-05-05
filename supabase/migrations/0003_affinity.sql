@@ -74,9 +74,9 @@ insert into affinity_rules (label, currency, beneficiary_country, requires_stabl
   ('EUR (non-HIGH risk) → BCB', 'EUR', null, null, 'SDM_INC', 'MEDIUM',
    (select bank_id from banks where bank_name = 'BCB Group'),
    70, 'BCB is the primary EUR/GBP bank for non-high-risk SDM Inc. clients.'),
-  ('EUR (HIGH risk) → OpenPay', 'EUR', null, null, null, 'HIGH',
-   (select bank_id from banks where bank_name = 'OpenPay'),
-   80, 'HIGH-risk clients cannot use BCB for EUR. OpenPay is lenient. Confirmed by Maple Wave pattern.'),
+  ('EUR (HIGH risk) → Openpayd', 'EUR', null, null, null, 'HIGH',
+   (select bank_id from banks where bank_name = 'Openpayd'),
+   80, 'HIGH-risk clients cannot use BCB for EUR. Openpayd is lenient. Confirmed by Maple Wave pattern.'),
 
   -- GBP
   ('GBP + UK + stables-in → Ripple ODL', 'GBP', 'GB', true, null, null,
@@ -85,9 +85,9 @@ insert into affinity_rules (label, currency, beneficiary_country, requires_stabl
   ('GBP (non-HIGH risk) → BCB', 'GBP', null, null, 'SDM_INC', 'MEDIUM',
    (select bank_id from banks where bank_name = 'BCB Group'),
    70, 'BCB primary for GBP when not HIGH risk.'),
-  ('GBP (HIGH risk) → OpenPay', 'GBP', null, null, null, 'HIGH',
-   (select bank_id from banks where bank_name = 'OpenPay'),
-   80, 'HIGH-risk clients cannot use BCB. OpenPay lenient on risk.'),
+  ('GBP (HIGH risk) → Openpayd', 'GBP', null, null, null, 'HIGH',
+   (select bank_id from banks where bank_name = 'Openpayd'),
+   80, 'HIGH-risk clients cannot use BCB. Openpayd lenient on risk.'),
 
   -- USD
   ('USD → Customers Bank (strategic push)', 'USD', null, null, 'SDM_INC', 'MEDIUM',
@@ -99,9 +99,9 @@ insert into affinity_rules (label, currency, beneficiary_country, requires_stabl
   ('USD fallback → BCB', 'USD', null, null, 'SDM_INC', 'MEDIUM',
    (select bank_id from banks where bank_name = 'BCB Group'),
    60, 'BCB has next-best USD pricing after Customers. Blink via Nonco/Flowdesk = near-instant. Used for Braza-style flows.'),
-  ('USD + HIGH risk → OpenPay', 'USD', null, null, null, 'HIGH',
-   (select bank_id from banks where bank_name = 'OpenPay'),
-   100, 'Curtis: "Paktra/Raw are high-risk — we have no choice but to use banking partners relatively lenient — OpenPay, Equals." Customers/BCB would flag and risk shutdown.'),
+  ('USD + HIGH risk → Openpayd', 'USD', null, null, null, 'HIGH',
+   (select bank_id from banks where bank_name = 'Openpayd'),
+   100, 'Curtis: "Paktra/Raw are high-risk — we have no choice but to use banking partners relatively lenient — Openpayd, Equals." Customers/BCB would flag and risk shutdown.'),
   ('USD + China + stables-in → Ripple ODL', 'USD', 'CN', true, null, null,
    (select bank_id from banks where bank_name = 'Ripple (ODL)'),
    100, 'Only Ripple corridor outside normal-jurisdiction rule: USD to China when client sends stables in.'),

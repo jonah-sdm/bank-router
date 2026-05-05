@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Tooltip, { BANK_TIER_DESCRIPTIONS } from './Tooltip.jsx';
 
 // Human-readable explanation of why an LP set is empty.
 // Differentiates registry gaps ("no LP supports CNY") from routing quirks
@@ -192,7 +193,9 @@ export default function RecommendationCard({ rec }) {
             )}
           </div>
           <div className="meta-row">
-            <span className={`badge tier-${active.tier}`}>{active.tier}</span>
+            <Tooltip content={BANK_TIER_DESCRIPTIONS[active.tier] || active.tier}>
+              <span className={`badge tier-${active.tier}`}>{active.tier}</span>
+            </Tooltip>
             {active.network && (
               <span className="badge network">{active.network}</span>
             )}

@@ -74,6 +74,9 @@ export default function ClientForm({ value, onChange }) {
           </label>
           <label className="field">
             Business Vertical
+            <span style={{ marginLeft: 8, color: 'var(--text-faint)', fontSize: 10.5, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+              (reference only — does not drive routing)
+            </span>
             <select value={v.business_vertical || ''}
               onChange={e => set({ business_vertical: e.target.value })}>
               <option value="">— Select —</option>
@@ -81,6 +84,9 @@ export default function ClientForm({ value, onChange }) {
                 <option key={bv.code} value={bv.code}>{bv.code} — {bv.label}</option>
               ))}
             </select>
+            <div style={{ fontSize: 10.5, color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginTop: 4, lineHeight: 1.5 }}>
+              Context for cross-trade signal (e.g. ATM operators netting against miners, PSPs signaling stables flow). Routing is driven by jurisdiction, currency, risk, and entity type only.
+            </div>
           </label>
           <label className="field">
             Jurisdiction
