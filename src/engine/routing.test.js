@@ -385,6 +385,97 @@ describe('Proprietary network upgrades', () => {
   });
 });
 
+// ------------------------- settlement flow (Phase B) -------------------------
+describe('Settlement flow — 5-step buy / sell + intra-bank transfer', () => {
+  const baseProfile = {
+    entity_type: 'CORPORATION', business_vertical: 'FINTECH',
+    sdm_entity: 'SDM_INC',
+    settlement_currencies: ['USD'], settlement_methods: [],
+    settlement_speed_sla: 'T1_NEXT_DAY', priority_tier: 'P2',
+    currencies_traded: ['USD'], beneficiary_country: 'US',
+    uses_stablecoins: false
+  };
+
+  it('buy flow has 5 steps: Client → SDM Bank → LP → SDM Fireblocks → Client Wallet', () => {
+    const profile = { ...baseProfile, risk_rating: 'LOW' };
+    const [leg] = computeRouting(profile, BANKS, LPS);
+    const buy = leg.settlement_flow.buy.steps.map(s => s.kind);
+    expect(buy).toEqual([
+      'client', 'sdm_bank', 'lp', 'sdm_fireblocks', 'client_wallet'
+    ]);
+  });
+
+  it('sell flow has 5 steps when no intra-bank transfer is needed', () => {
+    const profile = { ...baseProfile, risk_rating: 'LOW' };
+    const [leg] = computeRouting(profile, BANKS, LPS);
+    expect(leg.settlement_flow.has_intra_bank).toBe(false);
+    const sell = leg.settlement_flow.sell.steps.map(s => s.kind);
+    expect(sell).toEqual([
+      'client', 'sdm_fireblocks', 'lp', 'sdm_bank', 'client_bank'
+    ]);
+  });
+
+  it('HIGH-risk client routed to OpenpaydEquals does NOT trigger intra-bank (only BCB/Customers do)', () => {
+    // Paktra-style: HIGH risk USD → Openpayd (not BCB/Customers because risk excludes them)
+    const profile = {
+      ...baseProfile,
+      risk_rating: 'HIGH',
+      business_vertical: 'GAMING'
+    };
+    const [leg] = computeRouting(profile, BANKS, LPS);
+    expect(leg.recommended_bank.bank_name).toBe('Openpayd');
+    expect(leg.settlement_flow.has_intra_bank).toBe(false);
+  });
+
+  it('HIGH risk + primary bank = BCB triggers intra-bank transfer to Openpayd', () => {
+    // Force BCB to win by giving it a strong affinity boost
+    const RULES = [
+      { rule_id: 'force-bcb', label: 'force BCB', currency: 'USD',
+        bank_id: 'b2', boost: 200, is_active: true }
+    ];
+    // Use a MEDIUM-risk-tolerant version of BCB (already configured) AND
+    // a profile that BCB accepts. Tweak risk via fixture: BCB.max_client_risk=HIGH
+    const banksWithBCBHigh = BANKS.map(b =>
+      b.bank_id === 'b2' ? { ...b, max_client_risk: 'HIGH' } : b
+    );
+    const profile = { ...baseProfile, risk_rating: 'HIGH' };
+    const [leg] = computeRouting(profile, banksWithBCBHigh, LPS, undefined, RULES);
+    expect(leg.recommended_bank.bank_name).toBe('BCB Group');
+    expect(leg.settlement_flow.has_intra_bank).toBe(true);
+    expect(leg.settlement_flow.intra_bank.bank_name).toBe('Openpayd');
+    const sellKinds = leg.settlement_flow.sell.steps.map(s => s.kind);
+    expect(sellKinds).toEqual([
+      'client', 'sdm_fireblocks', 'lp', 'sdm_bank', 'sdm_intra_bank', 'client_bank'
+    ]);
+  });
+
+  it('Customers Bank for HIGH-risk also triggers intra-bank (when both fixture-allowed)', () => {
+    const banksHigh = BANKS.map(b =>
+      b.bank_id === 'b1' ? { ...b, max_client_risk: 'HIGH' } : b
+    );
+    const RULES = [
+      { rule_id: 'force-cust', label: 'force Customers', currency: 'USD',
+        bank_id: 'b1', boost: 200, is_active: true }
+    ];
+    const profile = { ...baseProfile, risk_rating: 'HIGH' };
+    const [leg] = computeRouting(profile, banksHigh, LPS, undefined, RULES);
+    expect(leg.recommended_bank.bank_name).toBe('Customers Bank');
+    expect(leg.settlement_flow.has_intra_bank).toBe(true);
+    expect(['Openpayd', 'Equals Money']).toContain(leg.settlement_flow.intra_bank.bank_name);
+  });
+
+  it('alternatives carry their own settlement flow (so swap re-renders correctly)', () => {
+    const profile = { ...baseProfile, risk_rating: 'LOW' };
+    const [leg] = computeRouting(profile, BANKS, LPS);
+    expect(leg.alternatives.length).toBeGreaterThan(0);
+    for (const alt of leg.alternatives) {
+      expect(alt.settlement_flow).toBeTruthy();
+      expect(alt.settlement_flow.buy.steps).toBeInstanceOf(Array);
+      expect(alt.settlement_flow.sell.steps).toBeInstanceOf(Array);
+    }
+  });
+});
+
 // ------------------------- scoring sanity -------------------------
 describe('scoring normalization', () => {
   it('respects weight changes (pricing_weight dominates)', () => {

@@ -1361,6 +1361,152 @@ table.data td .row-actions { display: flex; gap: 4px; justify-content: flex-end;
   font-size: 14px;
 }
 
+/* ---- Settlement Flow section header + buy/sell toggle ---- */
+.settlement-flow { margin-top: 14px; }
+.settlement-flow-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.settlement-flow-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  color: var(--text-faint);
+}
+.settlement-flow-toggle {
+  display: inline-flex;
+  background: var(--bg-elev-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+.flow-toggle-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.flow-toggle-btn:hover { color: var(--text); }
+.flow-toggle-btn.active {
+  background: var(--bg-elev-1);
+  color: var(--amber);
+  box-shadow: inset 0 0 0 1px rgba(238, 193, 63, 0.4);
+}
+
+/* HIGH-risk intra-bank explanation banner above the chain */
+.settlement-flow-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 7px 10px;
+  background: rgba(238, 193, 63, 0.08);
+  border: 1px solid rgba(238, 193, 63, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  color: var(--text);
+  line-height: 1.45;
+}
+.settlement-flow-banner strong { color: var(--amber); }
+.settlement-flow-banner .banner-dot {
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--amber);
+  flex-shrink: 0;
+}
+
+/* ---- Role-based step styling: external (client side) vs SDM-internal vs LP ---- */
+.flow-chain .flow-step-role-external {
+  border-color: rgba(61, 219, 143, 0.3);
+  background: rgba(61, 219, 143, 0.05);
+}
+.flow-chain .flow-step-role-external .flow-step-value { color: var(--green); }
+
+.flow-chain .flow-step-role-sdm {
+  border-color: rgba(120, 160, 255, 0.35);
+  background: rgba(120, 160, 255, 0.05);
+}
+.flow-chain .flow-step-role-lp {
+  border-color: var(--border-strong);
+  background: var(--bg-elev-2);
+}
+
+/* FX-on-bank highlight overrides the role tint */
+.flow-chain .flow-step-fx {
+  border-color: rgba(238, 193, 63, 0.5) !important;
+  background: var(--amber-glow) !important;
+}
+.flow-chain .flow-step-fx .flow-step-value { color: var(--amber); }
+
+/* Conditional (intra-bank) step gets a dashed border to signal it's not always present */
+.flow-chain .flow-step-conditional {
+  border-style: dashed !important;
+  border-color: rgba(238, 193, 63, 0.55) !important;
+  background: rgba(238, 193, 63, 0.06) !important;
+  position: relative;
+}
+.flow-step-cond-pill {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 8.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--amber);
+  background: rgba(238, 193, 63, 0.12);
+  padding: 1px 5px;
+  border-radius: 3px;
+  align-self: flex-start;
+}
+
+/* Tiny "SDM" / "LP" tag inside the step label */
+.flow-step-tag {
+  display: inline-block;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 4px;
+  margin-right: 5px;
+  border-radius: 3px;
+  background: rgba(120, 160, 255, 0.18);
+  color: #9bb5ff;
+  vertical-align: middle;
+}
+.flow-step-tag-lp {
+  background: rgba(238, 193, 63, 0.18);
+  color: var(--amber);
+}
+
+.flow-chain .flow-step-meta {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.flow-chain .flow-step-note {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  margin-top: 3px;
+  font-style: italic;
+  white-space: normal;
+  line-height: 1.3;
+}
+
 /* Swap indicator on the primary bank when user overrode the engine's pick */
 .swapped-chip {
   display: inline-block;

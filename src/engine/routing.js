@@ -352,6 +352,139 @@ function matchPctFromRatio(ratio) {
   return 0;
 }
 
+// =====================================================================
+// Settlement-flow builder — 5/6-step buy & sell flows per Curtis/Jim spec.
+//
+// SDM is non-custodial — every flow goes Client → SDM (Bank or Fireblocks) →
+// LP → SDM (the other one) → Client. There is no direct LP-to-client hop.
+//
+// Buy (client buying crypto, sending fiat):
+//   Client → SDM Bank → LP → SDM Fireblocks → Client Wallet
+//
+// Sell (client selling crypto, receiving fiat):
+//   Client → SDM Fireblocks → LP → SDM Bank → [intra-bank?] → Client Bank
+//
+// Intra-bank transfer is conditional: HIGH risk client + primary bank is
+// BCB or Customers Bank → bounce through Openpayd or Equals before the
+// final client wire (avoids the source bank flagging the high-risk flow).
+// =====================================================================
+
+const HIGH_RISK_INTRA_BANK_TRIGGERS = new Set(['BCB Group', 'Customers Bank']);
+const INTRA_BANK_PREFERENCE = ['Openpayd', 'Equals Money'];
+
+function pickIntraBank(banks, currency) {
+  if (!Array.isArray(banks)) return null;
+  for (const name of INTRA_BANK_PREFERENCE) {
+    const candidate = banks.find(b =>
+      b.bank_name === name &&
+      b.is_active !== false &&
+      arr(b.supported_currencies).includes(currency)
+    );
+    if (candidate) return candidate;
+  }
+  return null;
+}
+
+// Returns { has_intra_bank, intra_bank: {bank_name, reason} | null, buy, sell }
+// where each direction has a steps[] array describing the entities + values.
+export function buildSettlementFlow(profile, scoredBank, currency, lps, allBanks) {
+  if (!scoredBank?.bank) return null;
+  const bank = scoredBank.bank;
+  const network = scoredBank.network;
+  const inner = buildBankFlow(profile, scoredBank, currency, lps);
+  const feedstock = inner.feedstock_currency;
+  const primaryLp = (inner.recommended_lps || [])[0];
+  const lpName = primaryLp?.lp_name ?? 'LP';
+
+  // Intra-bank transfer needed?
+  const needsIntraBank =
+    profile.risk_rating === 'HIGH' &&
+    HIGH_RISK_INTRA_BANK_TRIGGERS.has(bank.bank_name);
+  const intraBank = needsIntraBank ? pickIntraBank(allBanks, currency) : null;
+
+  // ---------- BUY flow ----------
+  // Client deposits fiat, SDM trades it for crypto with LP, Fireblocks holds,
+  // client wallet receives crypto. Bank may FX from the client's deposit
+  // currency into the LP's accepted feedstock if they differ.
+  const buyBankInbound  = currency;          // client deposits in the leg currency
+  const buyBankOutbound = feedstock || currency;
+  const buyFxNeeded     = Boolean(buyBankOutbound && buyBankInbound && buyBankInbound !== buyBankOutbound);
+
+  const buy = {
+    steps: [
+      { kind: 'client',           label: 'Client',          value: `${currency} in`,                role: 'external' },
+      { kind: 'sdm_bank',         label: bank.bank_name,    value: buyFxNeeded
+                                                                    ? `FX: ${buyBankInbound} → ${buyBankOutbound}`
+                                                                    : 'passthrough',
+                                                            role: 'sdm',
+                                                            fx: buyFxNeeded,
+                                                            tier: bank.tier,
+                                                            network },
+      { kind: 'lp',               label: lpName,            value: buyBankOutbound,                 role: 'lp',
+                                                            note: 'fiat → crypto trade' },
+      { kind: 'sdm_fireblocks',   label: 'SDM Fireblocks',  value: 'crypto',                        role: 'sdm' },
+      { kind: 'client_wallet',    label: 'Client Wallet',   value: 'crypto out',                    role: 'external' }
+    ]
+  };
+
+  // ---------- SELL flow ----------
+  // Client sends crypto, Fireblocks receives, LP delivers feedstock fiat to
+  // SDM bank, bank FXes to payout currency if needed, [optional intra-bank
+  // hop], client bank receives.
+  const sellBankInbound  = feedstock || currency;
+  const sellBankOutbound = currency;
+  const sellFxNeeded     = Boolean(sellBankInbound !== sellBankOutbound);
+
+  const sellSteps = [
+    { kind: 'client',           label: 'Client',          value: 'crypto in',                       role: 'external' },
+    { kind: 'sdm_fireblocks',   label: 'SDM Fireblocks',  value: 'crypto',                          role: 'sdm' },
+    { kind: 'lp',               label: lpName,            value: sellBankInbound,                   role: 'lp',
+                                                          note: 'crypto → fiat trade' },
+    { kind: 'sdm_bank',         label: bank.bank_name,    value: sellFxNeeded
+                                                                  ? `FX: ${sellBankInbound} → ${sellBankOutbound}`
+                                                                  : 'passthrough',
+                                                          role: 'sdm',
+                                                          fx: sellFxNeeded,
+                                                          tier: bank.tier,
+                                                          network }
+  ];
+
+  if (intraBank) {
+    sellSteps.push({
+      kind: 'sdm_intra_bank',
+      label: intraBank.bank_name,
+      value: 'transit',
+      role: 'sdm',
+      tier: intraBank.tier,
+      conditional: true,
+      reason: `HIGH-risk flow rerouted through ${intraBank.bank_name} to avoid source-bank flagging at ${bank.bank_name}`
+    });
+  }
+
+  sellSteps.push({
+    kind: 'client_bank',
+    label: 'Client Bank',
+    value: `${currency} out`,
+    role: 'external'
+  });
+
+  return {
+    has_intra_bank: Boolean(intraBank),
+    intra_bank: intraBank ? {
+      bank_name: intraBank.bank_name,
+      tier:      intraBank.tier,
+      reason:    `HIGH-risk client routed through ${intraBank.bank_name} (${bank.bank_name} would flag a HIGH-risk wire as the source bank).`
+    } : null,
+    buy,
+    sell: { steps: sellSteps },
+    // Echo the FX info so callers (UI, analytics) can read it without
+    // recomputing — primary direction (sell) is what the legacy flow box
+    // showed, so we surface those fields at the top level.
+    feedstock_currency: feedstock,
+    fx_needed: sellFxNeeded
+  };
+}
+
 // Build the full flow details (feedstock, FX, recommended LPs, network) for a
 // specific scored bank on a currency leg. Used for both the primary
 // recommendation and the alternatives so swapping between them produces
@@ -468,11 +601,12 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
     const fxNeeded = Boolean(feedstock && feedstock !== currency);
 
     // Alternatives: up to 3 other eligible banks, each with FULL flow detail
-    // (network, feedstock, FX status, LPs) so the UI can swap any alternative
-    // into the primary slot and re-render the settlement flow accurately.
+    // (network, feedstock, FX status, LPs, settlement flow) so the UI can swap
+    // any alternative into the primary slot and re-render accurately.
     const topScore = top?.score ?? 0;
     const alternatives = scored.slice(1, 4).map(s => {
       const flow = buildBankFlow(profile, s, currency, lps);
+      const settlementFlow = buildSettlementFlow(profile, s, currency, lps, banks);
       return {
         bank_id: s.bank.bank_id,
         bank_name: s.bank.bank_name,
@@ -484,11 +618,18 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
         fx_needed: flow.fx_needed,
         recommended_lps: flow.recommended_lps,
         lp_gap_reason: flow.lp_gap_reason,
+        settlement_flow: settlementFlow,
         bank: s.bank,
         score: s.score,
         match_pct: matchPctFromRatio(topScore > 0 ? s.score / topScore : 0)
       };
     });
+
+    // Buy/Sell settlement flow for the primary recommendation, including the
+    // conditional intra-bank transfer when HIGH risk meets BCB / Customers.
+    const settlementFlow = top
+      ? buildSettlementFlow(profile, top, currency, lps, banks)
+      : null;
 
     return {
       currency_leg: currency,
@@ -501,6 +642,7 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
       lp_gap_reason: lpResult.reason,
       feedstock_currency: feedstock,
       fx_needed: fxNeeded,
+      settlement_flow: settlementFlow,
       score: top?.score ?? 0,
       base_score: top?.base_score ?? 0,
       affinity_bonus: top?.affinity_bonus ?? 0,

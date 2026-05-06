@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Tooltip, { BANK_TIER_DESCRIPTIONS } from './Tooltip.jsx';
+import SettlementFlowSection from './SettlementFlowSection.jsx';
 
 // Human-readable explanation of why an LP set is empty.
 // Differentiates registry gaps ("no LP supports CNY") from routing quirks
@@ -66,60 +67,6 @@ function renderLPGap(rec) {
   }
 }
 
-// Inline LP picker used inside the Settlement Flow. Clickable box that opens a
-// popover listing all recommended LPs for this leg. Lets ops choose which LP
-// to actually use — default is the first (engine-picked) LP.
-function LPFlowPicker({ lps, selected, onSelect, feedstock }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [open]);
-
-  const multi = lps.length > 1;
-
-  return (
-    <div
-      ref={ref}
-      className={`flow-step flow-lp ${multi ? 'has-dropdown' : ''} ${open ? 'open' : ''}`}
-      onClick={() => multi && setOpen(v => !v)}
-      role={multi ? 'button' : undefined}
-      tabIndex={multi ? 0 : undefined}
-      onKeyDown={(e) => { if (multi && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(v => !v); } }}
-    >
-      <div className="flow-step-label">
-        {selected?.lp_name || 'LP'}
-        {multi && <span className="flow-step-chev">{open ? '▴' : '▾'}</span>}
-      </div>
-      <div className="flow-step-value mono">{feedstock || '—'}</div>
-
-      {open && (
-        <div className="flow-lp-menu" onClick={e => e.stopPropagation()} role="listbox">
-          <div className="flow-lp-menu-label">Choose liquidity provider</div>
-          {lps.map(lp => (
-            <div
-              key={lp.lp_id}
-              role="option"
-              aria-selected={lp.lp_id === selected?.lp_id}
-              className={`flow-lp-menu-item ${lp.lp_id === selected?.lp_id ? 'selected' : ''}`}
-              onClick={() => { onSelect(lp); setOpen(false); }}
-            >
-              <span className="flow-lp-menu-name">{lp.lp_name}</span>
-              <span className="flow-lp-menu-meta mono">
-                {(lp.supported_currencies || []).slice(0, 4).join(', ')}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function RecommendationCard({ rec }) {
   const isOverride = rec.is_manual_override;
 
@@ -184,14 +131,7 @@ export default function RecommendationCard({ rec }) {
 
       {active ? (
         <>
-          <div className="bank-name">
-            {active.bank_name}
-            {swappedTo && (
-              <span className="swapped-chip" title="Manually swapped from the engine's pick">
-                swapped
-              </span>
-            )}
-          </div>
+          <div className="bank-name">{active.bank_name}</div>
           <div className="meta-row">
             <Tooltip content={BANK_TIER_DESCRIPTIONS[active.tier] || active.tier}>
               <span className={`badge tier-${active.tier}`}>{active.tier}</span>
@@ -210,39 +150,17 @@ export default function RecommendationCard({ rec }) {
             )}
           </div>
 
-          {/* Settlement flow — shows the bank acting as pass-through vs. doing FX */}
-          <div className="section-label">Settlement Flow</div>
-          <div className="flow-chain">
-            {lps.length > 0 ? (
-              <LPFlowPicker
-                lps={lps}
-                selected={selectedLp}
-                onSelect={setSelectedLp}
-                feedstock={active.feedstock_currency}
-              />
-            ) : (
-              <div className="flow-step flow-lp flow-lp-empty">
-                <div className="flow-step-label">LP</div>
-                <div className="flow-step-value mono" style={{ color: 'var(--text-faint)' }}>
-                  none available
-                </div>
-              </div>
-            )}
-            <div className="flow-arrow">→</div>
-            <div className={`flow-step flow-bank ${active.fx_needed ? 'fx' : ''}`}>
-              <div className="flow-step-label">{active.bank_name}</div>
-              <div className="flow-step-value mono">
-                {active.fx_needed
-                  ? `FX: ${active.feedstock_currency} → ${rec.currency_leg}`
-                  : 'passthrough'}
-              </div>
-            </div>
-            <div className="flow-arrow">→</div>
-            <div className="flow-step flow-client">
-              <div className="flow-step-label">Client</div>
-              <div className="flow-step-value mono">{rec.currency_leg}</div>
-            </div>
-          </div>
+          {/* Settlement Flow — buy/sell toggle + 5/6-step chain */}
+          <SettlementFlowSection
+            settlementFlow={active.settlement_flow ?? rec.settlement_flow}
+            currency={rec.currency_leg}
+            lps={lps}
+            selectedLp={selectedLp}
+            onSelectLp={setSelectedLp}
+            fallbackBankName={active.bank_name}
+            fallbackFeedstock={active.feedstock_currency}
+            fallbackFxNeeded={active.fx_needed}
+          />
 
           {displayAlts.length > 0 && (
             <>
