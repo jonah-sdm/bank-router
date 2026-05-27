@@ -24,15 +24,18 @@ Production setup: GitHub → Vercel → Supabase.
 
 ### 1b. Run the migrations
 
-From the project dashboard, open **SQL Editor** (left sidebar). Run these three files **in order**:
+From the project dashboard, open **SQL Editor** (left sidebar). Run **every file in `supabase/migrations/`** in numeric order:
 
-1. `supabase/migrations/0001_init.sql` — creates all tables, enums, triggers, RLS
-2. `supabase/migrations/0002_seed.sql` — seeds the 9 banks + sample LPs
-3. `supabase/migrations/0003_affinity.sql` — seeds the 17 affinity rules
+1. `0001_init.sql` — creates all tables, enums, triggers, RLS
+2. `0002_seed.sql` — seeds the 9 banks + sample LPs
+3. `0003_affinity.sql` — seeds the 17 affinity rules
+4. `0004_extra_networks.sql` — adds SEPA / FASTER_PAYMENTS / ACH to the network enum (separate file because enum-add must run in its own transaction)
+5. `0005_weights_extensible.sql` — adds JSONB `weights.factors[]` column for the extensible scoring system
+6. `0006_high_risk_intrabank.sql` — raises BCB / Customers `max_client_risk` to HIGH so the intra-bank transit step in Settlement Flow is reachable
 
-For each: open the file locally, copy its entire contents, paste into SQL Editor, click **Run**. You should see "Success. No rows returned" for the schema file and row-count confirmations for the seeds.
+For each: open the file locally, copy its entire contents, paste into SQL Editor, click **Run**.
 
-**Verify:** run `select count(*) from banks;` — should return `9`. Same for `lps` (`7`), `affinity_rules` (`17`).
+**Verify:** `select count(*) from banks;` returns `9`, `lps` `8`, `affinity_rules` `17`. Confirm `select bank_name, max_client_risk from banks where bank_name in ('BCB Group','Customers Bank');` shows both as `HIGH`.
 
 ### 1c. Grab the API credentials
 
