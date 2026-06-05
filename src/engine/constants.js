@@ -16,7 +16,12 @@ export const BUSINESS_VERTICALS = [
   { code: 'OTHER',              label: 'Other — manual review',                 risk: 'MANUAL_REVIEW' }
 ];
 
-export const SDM_ENTITIES = ['SDM_INC', 'SDM_USA'];
+export const SDM_ENTITIES = ['SDM_INC', 'SDM_USA', 'GREENLINE'];
+
+// Crypto chains the SDM Fireblocks setup handles for client wallets and the
+// HTX crypto-bridge flow (Greenline). Used by the UI dropdowns on the
+// client profile when crypto_bridge_required is set.
+export const CRYPTO_NETWORKS = ['ERC20', 'TRC20', 'SOL', 'BSC', 'POLYGON', 'BTC', 'BASE', 'AVAX'];
 export const ENTITY_TYPES = ['INDIVIDUAL', 'CORPORATION'];
 export const RISK_RATINGS = ['LOW', 'MEDIUM', 'HIGH'];
 export const KYC_STATUSES = ['PENDING', 'APPROVED', 'EDD_REQUIRED'];

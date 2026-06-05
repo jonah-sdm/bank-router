@@ -1,6 +1,7 @@
 import {
   BUSINESS_VERTICALS, ENTITY_TYPES, RISK_RATINGS, SDM_ENTITIES,
-  PRIORITY_TIERS, SETTLEMENT_SLA, CLIENT_REQUESTABLE_NETWORKS
+  PRIORITY_TIERS, SETTLEMENT_SLA, CLIENT_REQUESTABLE_NETWORKS,
+  CRYPTO_NETWORKS
 } from '../engine/constants.js';
 import CountryPicker from './CountryPicker.jsx';
 
@@ -214,6 +215,52 @@ export default function ClientForm({ value, onChange }) {
               ))}
             </div>
           </label>
+        </div>
+      </div>
+
+      <div>
+        <div className="sub-section">Crypto Bridge (Greenline · HTX)</div>
+        <div style={{ fontSize: 10.5, color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginBottom: 10, lineHeight: 1.5 }}>
+          Optional. Enable when the client deposits crypto on one chain and wants it out on another
+          (e.g. USDT on Solana → USDT on TRC). Routing engine adds a Greenline + HTX bridge step
+          before / after the fiat leg.
+        </div>
+        <div className="field-grid">
+          <label className="field">
+            Crypto Bridge Required
+            <div className="radio-row">
+              <label className={v.crypto_bridge_required === true ? 'selected' : ''}>
+                <input type="radio" checked={v.crypto_bridge_required === true}
+                  onChange={() => set({ crypto_bridge_required: true })} />
+                YES
+              </label>
+              <label className={!v.crypto_bridge_required ? 'selected' : ''}>
+                <input type="radio" checked={!v.crypto_bridge_required}
+                  onChange={() => set({ crypto_bridge_required: false, crypto_origin_network: null, crypto_target_network: null })} />
+                NO
+              </label>
+            </div>
+          </label>
+          {v.crypto_bridge_required && (
+            <>
+              <label className="field">
+                Origin Chain (client deposits)
+                <select value={v.crypto_origin_network || ''}
+                  onChange={e => set({ crypto_origin_network: e.target.value || null })}>
+                  <option value="">— Select —</option>
+                  {CRYPTO_NETWORKS.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                Target Chain (client receives)
+                <select value={v.crypto_target_network || ''}
+                  onChange={e => set({ crypto_target_network: e.target.value || null })}>
+                  <option value="">— Select —</option>
+                  {CRYPTO_NETWORKS.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+            </>
+          )}
         </div>
       </div>
     </div>

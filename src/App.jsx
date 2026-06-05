@@ -48,6 +48,10 @@ export default function App() {
             <NavLink to="/audit" className={({ isActive }) => isActive ? 'active' : ''}>
               Audit
             </NavLink>
+
+            <NavLink to="/tools/anonymizer" className={({ isActive }) => isActive ? 'active' : ''}>
+              Anonymizer
+            </NavLink>
           </nav>
 
           <div className="topbar-right">

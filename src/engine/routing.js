@@ -372,6 +372,36 @@ function matchPctFromRatio(ratio) {
 const HIGH_RISK_INTRA_BANK_TRIGGERS = new Set(['BCB Group', 'Customers Bank']);
 const INTRA_BANK_PREFERENCE = ['Openpayd', 'Equals Money'];
 
+// Crypto-bridge flow constants (Curtis Apr-23 call): cross-chain swaps go
+// through HTX as on-chain counterparty, with Greenline as SDM's entity of
+// record on the exchange.
+const BRIDGE_ENTITY = 'Greenline';
+const BRIDGE_EXCHANGE = 'HTX';
+
+// Build the cross-chain crypto bridge variant of the settlement flow. Only
+// produced when profile.crypto_bridge_required is true. Doesn't replace the
+// fiat flow — it sits alongside it, surfaced by the UI when relevant.
+export function buildCryptoBridgeFlow(profile) {
+  if (!profile?.crypto_bridge_required) return null;
+  const origin = profile.crypto_origin_network || '?';
+  const target = profile.crypto_target_network || '?';
+  return {
+    origin_network: origin,
+    target_network: target,
+    via_entity: BRIDGE_ENTITY,
+    exchange: BRIDGE_EXCHANGE,
+    steps: [
+      { kind: 'client',           label: 'Client',              value: `crypto in (${origin})`,                  role: 'external' },
+      { kind: 'sdm_fireblocks',   label: 'SDM Fireblocks',      value: `crypto (${origin})`,                     role: 'sdm' },
+      { kind: 'sdm_bridge_vault', label: `${BRIDGE_ENTITY} Fireblocks`, value: `crypto (${origin})`,             role: 'sdm', bridge: true, note: 'SDM entity on HTX' },
+      { kind: 'bridge_exchange',  label: BRIDGE_EXCHANGE,       value: `${origin} → ${target}`,                  role: 'lp',  bridge: true, note: 'on-chain swap' },
+      { kind: 'sdm_bridge_vault', label: `${BRIDGE_ENTITY} Fireblocks`, value: `crypto (${target})`,             role: 'sdm', bridge: true },
+      { kind: 'sdm_fireblocks',   label: 'SDM Fireblocks',      value: `crypto (${target})`,                     role: 'sdm' },
+      { kind: 'client_wallet',    label: 'Client Wallet',       value: `crypto out (${target})`,                 role: 'external' }
+    ]
+  };
+}
+
 function pickIntraBank(banks, currency) {
   if (!Array.isArray(banks)) return null;
   for (const name of INTRA_BANK_PREFERENCE) {
@@ -402,35 +432,54 @@ export function buildSettlementFlow(profile, scoredBank, currency, lps, allBanks
     HIGH_RISK_INTRA_BANK_TRIGGERS.has(bank.bank_name);
   const intraBank = needsIntraBank ? pickIntraBank(allBanks, currency) : null;
 
+  // SDM_USA clients trade with SDM_INC as the intermediate counterparty
+  // (SDM_INC places the LP order on behalf of SDM_USA, then funds get wired
+  // bank-to-bank into the SDM_USA bank). Curtis Apr-23: "SDM USA uses any
+  // client onboarded with SDM USA, and SDM USA uses SDM Inc. as the LP, and
+  // SDM Inc. then hedges with the LPs."
+  const isSdmUsa = profile.sdm_entity === 'SDM_USA';
+  const intercompanyStep = isSdmUsa ? {
+    kind: 'sdm_intercompany',
+    label: 'SDM Inc.',
+    value: 'intercompany',
+    role: 'sdm',
+    note: 'SDM_USA trades via SDM_INC',
+    intercompany: true
+  } : null;
+
   // ---------- BUY flow ----------
   // Client deposits fiat, SDM trades it for crypto with LP, Fireblocks holds,
   // client wallet receives crypto. Bank may FX from the client's deposit
   // currency into the LP's accepted feedstock if they differ.
+  // For SDM_USA: extra hop where SDM_INC sits between bank and LP.
   const buyBankInbound  = currency;          // client deposits in the leg currency
   const buyBankOutbound = feedstock || currency;
   const buyFxNeeded     = Boolean(buyBankOutbound && buyBankInbound && buyBankInbound !== buyBankOutbound);
 
-  const buy = {
-    steps: [
-      { kind: 'client',           label: 'Client',          value: `${currency} in`,                role: 'external' },
-      { kind: 'sdm_bank',         label: bank.bank_name,    value: buyFxNeeded
-                                                                    ? `FX: ${buyBankInbound} → ${buyBankOutbound}`
-                                                                    : 'passthrough',
-                                                            role: 'sdm',
-                                                            fx: buyFxNeeded,
-                                                            tier: bank.tier,
-                                                            network },
-      { kind: 'lp',               label: lpName,            value: buyBankOutbound,                 role: 'lp',
-                                                            note: 'fiat → crypto trade' },
-      { kind: 'sdm_fireblocks',   label: 'SDM Fireblocks',  value: 'crypto',                        role: 'sdm' },
-      { kind: 'client_wallet',    label: 'Client Wallet',   value: 'crypto out',                    role: 'external' }
-    ]
-  };
+  const buySteps = [
+    { kind: 'client',           label: 'Client',          value: `${currency} in`,                role: 'external' },
+    { kind: 'sdm_bank',         label: bank.bank_name,    value: buyFxNeeded
+                                                                  ? `FX: ${buyBankInbound} → ${buyBankOutbound}`
+                                                                  : 'passthrough',
+                                                          role: 'sdm',
+                                                          fx: buyFxNeeded,
+                                                          tier: bank.tier,
+                                                          network }
+  ];
+  if (intercompanyStep) buySteps.push({ ...intercompanyStep });
+  buySteps.push(
+    { kind: 'lp',               label: lpName,            value: buyBankOutbound,                 role: 'lp',
+                                                          note: 'fiat → crypto trade' },
+    { kind: 'sdm_fireblocks',   label: 'SDM Fireblocks',  value: 'crypto',                        role: 'sdm' },
+    { kind: 'client_wallet',    label: 'Client Wallet',   value: 'crypto out',                    role: 'external' }
+  );
+  const buy = { steps: buySteps };
 
   // ---------- SELL flow ----------
   // Client sends crypto, Fireblocks receives, LP delivers feedstock fiat to
   // SDM bank, bank FXes to payout currency if needed, [optional intra-bank
-  // hop], client bank receives.
+  // hop], client bank receives. For SDM_USA: extra hop where SDM_INC sits
+  // between LP and the SDM_USA bank.
   const sellBankInbound  = feedstock || currency;
   const sellBankOutbound = currency;
   const sellFxNeeded     = Boolean(sellBankInbound !== sellBankOutbound);
@@ -439,7 +488,10 @@ export function buildSettlementFlow(profile, scoredBank, currency, lps, allBanks
     { kind: 'client',           label: 'Client',          value: 'crypto in',                       role: 'external' },
     { kind: 'sdm_fireblocks',   label: 'SDM Fireblocks',  value: 'crypto',                          role: 'sdm' },
     { kind: 'lp',               label: lpName,            value: sellBankInbound,                   role: 'lp',
-                                                          note: 'crypto → fiat trade' },
+                                                          note: 'crypto → fiat trade' }
+  ];
+  if (intercompanyStep) sellSteps.push({ ...intercompanyStep });
+  sellSteps.push(
     { kind: 'sdm_bank',         label: bank.bank_name,    value: sellFxNeeded
                                                                   ? `FX: ${sellBankInbound} → ${sellBankOutbound}`
                                                                   : 'passthrough',
@@ -447,7 +499,7 @@ export function buildSettlementFlow(profile, scoredBank, currency, lps, allBanks
                                                           fx: sellFxNeeded,
                                                           tier: bank.tier,
                                                           network }
-  ];
+  );
 
   if (intraBank) {
     sellSteps.push({
@@ -474,6 +526,12 @@ export function buildSettlementFlow(profile, scoredBank, currency, lps, allBanks
       bank_name: intraBank.bank_name,
       tier:      intraBank.tier,
       reason:    `HIGH-risk client routed through ${intraBank.bank_name} (${bank.bank_name} would flag a HIGH-risk wire as the source bank).`
+    } : null,
+    has_intercompany: Boolean(intercompanyStep),
+    intercompany: intercompanyStep ? {
+      from_entity: 'SDM_USA',
+      via_entity:  'SDM_INC',
+      reason:      'SDM_USA clients trade via SDM_INC as intermediate counterparty (SDM_INC places the LP order, then funds wire bank-to-bank into the SDM_USA bank).'
     } : null,
     buy,
     sell: { steps: sellSteps },
@@ -631,6 +689,11 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
       ? buildSettlementFlow(profile, top, currency, lps, banks)
       : null;
 
+    // Optional Greenline + HTX crypto-bridge flow, surfaced when the client
+    // needs a cross-chain swap before/after the fiat leg. Same on every leg
+    // since it's a property of the client, not the currency.
+    const bridgeFlow = buildCryptoBridgeFlow(profile);
+
     return {
       currency_leg: currency,
       recommended_bank: top?.bank ?? null,
@@ -643,6 +706,7 @@ export function computeRouting(profile, banks, lps, weights = DEFAULT_WEIGHTS, a
       feedstock_currency: feedstock,
       fx_needed: fxNeeded,
       settlement_flow: settlementFlow,
+      bridge_flow: bridgeFlow,
       score: top?.score ?? 0,
       base_score: top?.base_score ?? 0,
       affinity_bonus: top?.affinity_bonus ?? 0,

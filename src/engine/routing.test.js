@@ -476,6 +476,93 @@ describe('Settlement flow — 5-step buy / sell + intra-bank transfer', () => {
   });
 });
 
+describe('SDM_USA intercompany flow (Curtis Apr-23)', () => {
+  const baseProfile = {
+    entity_type: 'CORPORATION', business_vertical: 'FINTECH',
+    sdm_entity: 'SDM_USA',
+    settlement_currencies: ['USD'], settlement_methods: [],
+    settlement_speed_sla: 'T1_NEXT_DAY', priority_tier: 'P2',
+    currencies_traded: ['USD'], beneficiary_country: 'US',
+    uses_stablecoins: false, risk_rating: 'LOW'
+  };
+
+  it('SDM_USA sell flow inserts SDM_INC intercompany step between LP and bank', () => {
+    const [leg] = computeRouting(baseProfile, BANKS, LPS);
+    expect(leg.settlement_flow.has_intercompany).toBe(true);
+    expect(leg.settlement_flow.intercompany.via_entity).toBe('SDM_INC');
+    const sellKinds = leg.settlement_flow.sell.steps.map(s => s.kind);
+    expect(sellKinds).toEqual([
+      'client', 'sdm_fireblocks', 'lp', 'sdm_intercompany', 'sdm_bank', 'client_bank'
+    ]);
+  });
+
+  it('SDM_USA buy flow inserts SDM_INC intercompany step between bank and LP', () => {
+    const [leg] = computeRouting(baseProfile, BANKS, LPS);
+    const buyKinds = leg.settlement_flow.buy.steps.map(s => s.kind);
+    expect(buyKinds).toEqual([
+      'client', 'sdm_bank', 'sdm_intercompany', 'lp', 'sdm_fireblocks', 'client_wallet'
+    ]);
+  });
+
+  it('SDM_INC clients do NOT get the intercompany hop', () => {
+    const profile = { ...baseProfile, sdm_entity: 'SDM_INC' };
+    const [leg] = computeRouting(profile, BANKS, LPS);
+    expect(leg.settlement_flow.has_intercompany).toBe(false);
+    const sellKinds = leg.settlement_flow.sell.steps.map(s => s.kind);
+    expect(sellKinds).not.toContain('sdm_intercompany');
+  });
+});
+
+describe('Greenline + HTX crypto bridge flow (Curtis Apr-23)', () => {
+  const baseProfile = {
+    entity_type: 'CORPORATION', business_vertical: 'FINTECH',
+    sdm_entity: 'SDM_INC',
+    settlement_currencies: ['USD'], settlement_methods: [],
+    settlement_speed_sla: 'T1_NEXT_DAY', priority_tier: 'P2',
+    currencies_traded: ['USD'], beneficiary_country: 'US',
+    uses_stablecoins: true, risk_rating: 'LOW'
+  };
+
+  it('clients without crypto_bridge_required get a null bridge_flow', () => {
+    const [leg] = computeRouting(baseProfile, BANKS, LPS);
+    expect(leg.bridge_flow).toBe(null);
+  });
+
+  it('crypto_bridge_required client gets the Greenline + HTX chain', () => {
+    const profile = {
+      ...baseProfile,
+      crypto_bridge_required: true,
+      crypto_origin_network: 'SOL',
+      crypto_target_network: 'TRC20'
+    };
+    const [leg] = computeRouting(profile, BANKS, LPS);
+    expect(leg.bridge_flow).toBeTruthy();
+    expect(leg.bridge_flow.via_entity).toBe('Greenline');
+    expect(leg.bridge_flow.exchange).toBe('HTX');
+    expect(leg.bridge_flow.origin_network).toBe('SOL');
+    expect(leg.bridge_flow.target_network).toBe('TRC20');
+    const kinds = leg.bridge_flow.steps.map(s => s.kind);
+    expect(kinds).toEqual([
+      'client', 'sdm_fireblocks', 'sdm_bridge_vault',
+      'bridge_exchange',
+      'sdm_bridge_vault', 'sdm_fireblocks', 'client_wallet'
+    ]);
+  });
+
+  it('bridge step values mention both origin and target chains', () => {
+    const profile = {
+      ...baseProfile,
+      crypto_bridge_required: true,
+      crypto_origin_network: 'SOL',
+      crypto_target_network: 'TRC20'
+    };
+    const [leg] = computeRouting(profile, BANKS, LPS);
+    const exchangeStep = leg.bridge_flow.steps.find(s => s.kind === 'bridge_exchange');
+    expect(exchangeStep.value).toContain('SOL');
+    expect(exchangeStep.value).toContain('TRC20');
+  });
+});
+
 // ------------------------- scoring sanity -------------------------
 describe('scoring normalization', () => {
   it('respects weight changes (pricing_weight dominates)', () => {

@@ -153,6 +153,7 @@ export default function RecommendationCard({ rec }) {
           {/* Settlement Flow — buy/sell toggle + 5/6-step chain */}
           <SettlementFlowSection
             settlementFlow={active.settlement_flow ?? rec.settlement_flow}
+            bridgeFlow={rec.bridge_flow}
             currency={rec.currency_leg}
             lps={lps}
             selectedLp={selectedLp}

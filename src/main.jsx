@@ -11,6 +11,7 @@ import ClientsPage from './pages/registry/ClientsPage.jsx'
 import AffinityPage from './pages/rules/AffinityPage.jsx'
 import WeightsPage from './pages/rules/WeightsPage.jsx'
 import AuditPage from './pages/AuditPage.jsx'
+import AnonymizerPage from './pages/AnonymizerPage.jsx'
 import './styles/theme.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -33,6 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="rules" element={<Navigate to="/rules/affinity" replace />} />
 
           <Route path="audit" element={<AuditPage />} />
+          <Route path="tools/anonymizer" element={<AnonymizerPage />} />
 
           {/* Legacy /admin/* redirects — keep for one release so bookmarks don't break */}
           <Route path="admin"           element={<Navigate to="/registry/banks" replace />} />

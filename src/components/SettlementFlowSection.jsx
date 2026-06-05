@@ -18,6 +18,7 @@ import Tooltip from './Tooltip.jsx';
 // currently-selected LP from the parent.
 export default function SettlementFlowSection({
   settlementFlow,
+  bridgeFlow,
   currency,
   lps,
   selectedLp,
@@ -49,6 +50,35 @@ export default function SettlementFlowSection({
 
   return (
     <div className="settlement-flow">
+      {bridgeFlow && (
+        <div className="settlement-bridge">
+          <div className="settlement-flow-head">
+            <div className="settlement-flow-title">
+              Crypto Bridge · {bridgeFlow.origin_network} → {bridgeFlow.target_network}
+            </div>
+            <span className="settlement-bridge-tag">{bridgeFlow.via_entity} · {bridgeFlow.exchange}</span>
+          </div>
+          <div className="settlement-flow-banner settlement-flow-banner-bridge">
+            <span className="banner-dot" />
+            <span>
+              <strong>Cross-chain crypto swap:</strong> Greenline (SDM's entity on HTX) bridges
+              {' '}{bridgeFlow.origin_network} → {bridgeFlow.target_network} before / after the fiat leg.
+            </span>
+          </div>
+          <div className="flow-chain">
+            {bridgeFlow.steps.map((step, idx) => (
+              <FlowStep
+                key={`bridge-${step.kind}-${idx}`}
+                step={step}
+                isLast={idx === bridgeFlow.steps.length - 1}
+                lps={[]}
+                selectedLp={null}
+                onSelectLp={() => {}}
+              />
+            ))}
+          </div>
+        </div>
+      )}
       <div className="settlement-flow-head">
         <div className="settlement-flow-title">Settlement Flow</div>
         <div className="settlement-flow-toggle" role="tablist" aria-label="Flow direction">
@@ -120,12 +150,20 @@ function FlowStep({ step, isLast, lps, selectedLp, onSelectLp }) {
 
   const roleClass = `flow-step-role-${step.role || 'external'}`;
   const conditionalClass = step.conditional ? 'flow-step-conditional' : '';
+  const intercompanyClass = step.intercompany ? 'flow-step-intercompany' : '';
+  const bridgeClass = step.bridge ? 'flow-step-bridge' : '';
   const fxClass = step.fx ? 'flow-step-fx' : '';
+  const tagClass = step.intercompany
+    ? 'flow-step-tag flow-step-tag-intercompany'
+    : step.bridge
+      ? 'flow-step-tag flow-step-tag-bridge'
+      : 'flow-step-tag';
 
   const box = (
-    <div className={`flow-step flow-step-static ${roleClass} ${conditionalClass} ${fxClass}`}>
+    <div className={`flow-step flow-step-static ${roleClass} ${conditionalClass} ${intercompanyClass} ${bridgeClass} ${fxClass}`}>
       <div className="flow-step-label">
-        {step.role === 'sdm' && <span className="flow-step-tag">SDM</span>}
+        {step.role === 'sdm' && <span className={tagClass}>SDM</span>}
+        {step.role === 'lp' && step.bridge && <span className={tagClass}>HTX</span>}
         {step.label}
       </div>
       <div className="flow-step-value mono">{step.value || '—'}</div>
@@ -134,6 +172,15 @@ function FlowStep({ step, isLast, lps, selectedLp, onSelectLp }) {
       {step.conditional && <div className="flow-step-cond-pill">conditional</div>}
     </div>
   );
+
+  if (step.intercompany) {
+    return (
+      <>
+        <Tooltip content="SDM_USA clients trade with SDM_INC as the intermediate counterparty. SDM_INC places the LP order, then funds wire bank-to-bank into the SDM_USA bank.">{box}</Tooltip>
+        {arrow}
+      </>
+    );
+  }
 
   if (step.conditional && step.reason) {
     return (
